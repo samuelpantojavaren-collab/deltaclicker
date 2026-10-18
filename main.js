@@ -2,17 +2,19 @@
 "use strict";
 
 // ============================================
-// DELTACLICKER 0.2.0
+// DELTACLICKER 0.3.0
 // ============================================
 
 const CLAVE_GUARDADO = "deltaclicker";
 const TIEMPO_SUENO = 10000;
 const INTERVALO_DISPARO = 700;
 const MAX_ENEMIGOS = 3;
+const MAX_ESPECIALES = 4;
 const INTERVALO_ROBO = 5000;
 const INTERVALO_APARICION_MIN = 7000;
 const INTERVALO_APARICION_MAX = 12000;
 const DANIO_CLIC = 1;
+const COSTE_ESPECIAL = 15;
 
 let clicks = 0;
 let tpBarra = 0;
@@ -26,15 +28,25 @@ let renacimientos = 0;
 // MEJORAS DE CLICK
 // ============================================
 
+// Se amplía de 8 a 15 mejoras.
+// Las mejoras normales se reinician al renacer.
+
 const mejoras = {
-    1: { coste: 1, multiplicador: 2, comprada: false },
-    2: { coste: 2, multiplicador: 3, comprada: false },
-    3: { coste: 3, multiplicador: 4, comprada: false },
-    4: { coste: 5, multiplicador: 6, comprada: false },
-    5: { coste: 8, multiplicador: 9, comprada: false },
-    6: { coste: 13, multiplicador: 13, comprada: false },
-    7: { coste: 21, multiplicador: 20, comprada: false },
-    8: { coste: 34, multiplicador: 30, comprada: false }
+    1:  { coste: 1,    multiplicador: 2,   comprada: false },
+    2:  { coste: 2,    multiplicador: 3,   comprada: false },
+    3:  { coste: 3,    multiplicador: 4,   comprada: false },
+    4:  { coste: 5,    multiplicador: 6,   comprada: false },
+    5:  { coste: 8,    multiplicador: 9,   comprada: false },
+    6:  { coste: 13,   multiplicador: 13,  comprada: false },
+    7:  { coste: 21,   multiplicador: 20,  comprada: false },
+    8:  { coste: 34,   multiplicador: 30,  comprada: false },
+    9:  { coste: 55,   multiplicador: 45,  comprada: false },
+    10: { coste: 89,   multiplicador: 65,  comprada: false },
+    11: { coste: 144,  multiplicador: 90,  comprada: false },
+    12: { coste: 233,  multiplicador: 125, comprada: false },
+    13: { coste: 377,  multiplicador: 175, comprada: false },
+    14: { coste: 610,  multiplicador: 250, comprada: false },
+    15: { coste: 987,  multiplicador: 350, comprada: false }
 };
 
 const durabilidades = {
@@ -77,20 +89,29 @@ const mejorasEsencia = {
     velocidad: { nivel: 0, precios: [...PRECIOS_ESENCIA] }
 };
 
+// Esta mejora se conserva al renacer.
 const mejoraTPAyudantes = {
     nivel: 0,
     precios: [5, 10, 20, 35, 55]
 };
 
+// ============================================
+// AYUDANTES ESPECIALES
+// ============================================
+
+// Las mejoras de velocidad y TP son compartidas.
+// Cada ayudante tiene su propio temporizador.
+// Se permiten hasta cuatro ayudantes especiales.
+
+const PRECIOS_ESPECIAL = [15, 30, 60, 105, 165];
+
 const ayudanteEspecial = {
-    comprado: false,
+    cantidad: 0,
     intervaloBase: INTERVALO_DISPARO / 2,
     nivelVelocidad: 0,
     nivelTP: 0,
-    ultimoDisparo: 0
+    ultimoDisparo: []
 };
-
-const PRECIOS_ESPECIAL = [15, 30, 60, 105, 165];
 
 // ============================================
 // ENEMIGOS
@@ -162,6 +183,7 @@ const zonaEnemigos = document.getElementById("zona-enemigos");
 
 function numeroSeguro(valor, minimo = 0) {
     const numero = Number(valor);
+
     return Number.isFinite(numero)
         ? Math.max(minimo, numero)
         : minimo;
@@ -185,6 +207,108 @@ function requisitoCumplido(coleccion, id) {
     return coleccion[id - 1]?.comprada === true;
 }
 
+function obtenerCantidadEspecial() {
+    return Math.min(
+        MAX_ESPECIALES,
+        Math.max(0, Math.floor(ayudanteEspecial.cantidad))
+    );
+}
+
+// ============================================
+// MÁS MEJORAS DE CLICK
+// ============================================
+
+function crearMejorasClickAdicionales() {
+    if (!listaMejoras) return;
+
+    for (let id = 9; id <= 15; id++) {
+        if (
+            listaMejoras.querySelector(
+                `.comprar-mejora[data-mejora="${id}"]`
+            )
+        ) {
+            continue;
+        }
+
+        const mejora = mejoras[id];
+        if (!mejora) continue;
+
+        const botonMejora = crearElemento(
+            "button",
+            "comprar-mejora",
+            `Mejora de clic ${id}`
+        );
+
+        botonMejora.type = "button";
+        botonMejora.dataset.mejora = String(id);
+
+        listaMejoras.appendChild(botonMejora);
+
+        botonMejora.addEventListener("click", function() {
+            comprarMejoraClick(id);
+        });
+    }
+}
+
+function comprarMejoraClick(id) {
+    const mejora = mejoras[id];
+
+    if (!mejora || mejora.comprada) return;
+    if (!requisitoCumplido(mejoras, id)) return;
+    if (tpTotal < mejora.coste) return;
+
+    tpTotal -= mejora.coste;
+    mejora.comprada = true;
+
+    actualizarInterfaz();
+    guardarProgreso();
+}
+
+// ============================================
+// BOTONES DE NAVEGACIÓN EN MÓVILES
+// ============================================
+
+// Coloca RENACER junto a AYUDANTES y permite que
+// ambos botones bajen de línea en pantallas estrechas.
+
+function colocarBotonesJuntos() {
+    const botonProgresion = document.getElementById("boton-progresion");
+
+    if (!botonAyudantes || !botonProgresion) return;
+
+    let grupo = document.getElementById("grupo-botones-navegacion");
+
+    if (!grupo) {
+        grupo = crearElemento("div", "");
+        grupo.id = "grupo-botones-navegacion";
+
+        grupo.style.display = "flex";
+        grupo.style.flexWrap = "wrap";
+        grupo.style.alignItems = "center";
+        grupo.style.gap = "8px";
+        grupo.style.maxWidth = "100%";
+        grupo.style.boxSizing = "border-box";
+
+        const padre = botonAyudantes.parentElement;
+
+        if (padre) {
+            padre.insertBefore(grupo, botonAyudantes);
+        } else {
+            document.body.appendChild(grupo);
+        }
+    }
+
+    grupo.append(botonAyudantes, botonProgresion);
+
+    for (const botonMenu of [botonAyudantes, botonProgresion]) {
+        botonMenu.style.flex = "0 1 auto";
+        botonMenu.style.minWidth = "0";
+        botonMenu.style.maxWidth = "100%";
+        botonMenu.style.boxSizing = "border-box";
+        botonMenu.style.whiteSpace = "normal";
+    }
+}
+
 // ============================================
 // PANEL DE RENACIMIENTO
 // ============================================
@@ -196,8 +320,9 @@ function crearPanelesNuevos() {
         panel = crearElemento("section", "panel-progresion");
         panel.id = "panel-progresion";
 
-        const titulo = crearElemento("h2", "", "RENACER Y ESENCIAS");
-        panel.appendChild(titulo);
+        panel.appendChild(
+            crearElemento("h2", "", "RENACER Y ESENCIAS")
+        );
 
         const textoEsencia = crearElemento("p", "", "Esencias: 0");
         textoEsencia.id = "contador-esencia";
@@ -212,22 +337,25 @@ function crearPanelesNuevos() {
         botonRenacer.type = "button";
         panel.appendChild(botonRenacer);
 
-        const tituloTienda = crearElemento("h3", "", "MEJORAS PERMANENTES");
-        panel.appendChild(tituloTienda);
+        panel.appendChild(
+            crearElemento("h3", "", "MEJORAS PERMANENTES")
+        );
 
         const lista = crearElemento("div", "lista-esencia");
         lista.id = "lista-esencia";
         panel.appendChild(lista);
 
-        const tituloAyudantes = crearElemento("h3", "", "AYUDANTES ESPECIALES");
-        panel.appendChild(tituloAyudantes);
+        panel.appendChild(
+            crearElemento("h3", "", "AYUDANTES ESPECIALES")
+        );
 
         const listaEspecial = crearElemento("div", "lista-especial");
         listaEspecial.id = "lista-especial";
         panel.appendChild(listaEspecial);
 
-        const tituloTP = crearElemento("h3", "", "PRODUCCIÓN DE LOS AYUDANTES");
-        panel.appendChild(tituloTP);
+        panel.appendChild(
+            crearElemento("h3", "", "PRODUCCIÓN DE LOS AYUDANTES")
+        );
 
         const listaTP = crearElemento("div", "lista-tp-ayudantes");
         listaTP.id = "lista-tp-ayudantes";
@@ -264,11 +392,7 @@ function crearPanelesNuevos() {
         listaEsencia.dataset.creada = "true";
 
         listaEsencia.appendChild(
-            crearBotonMejoraEsencia(
-                "click",
-                "Poder de clic",
-                "+50% por nivel"
-            )
+            crearBotonMejoraEsencia("click", "Poder de clic", "+50% por nivel")
         );
 
         listaEsencia.appendChild(
@@ -350,6 +474,8 @@ function crearPanelesNuevos() {
         botonRenacer.dataset.eventoCreado = "true";
         botonRenacer.addEventListener("click", renacer);
     }
+
+    colocarBotonesJuntos();
 }
 
 function crearBotonMejoraEsencia(tipo, nombre, efecto) {
@@ -418,32 +544,47 @@ function cargarProgreso() {
             }
         }
 
+        // La mejora de TP de los ayudantes se conserva
+        // también en partidas anteriores.
         mejoraTPAyudantes.nivel = Math.min(
             mejoraTPAyudantes.precios.length,
             numeroSeguro(datos.mejoraTPAyudantes?.nivel)
         );
 
         if (datos.ayudanteEspecial) {
-            ayudanteEspecial.comprado =
-                datos.ayudanteEspecial.comprado === true;
+            const guardado = datos.ayudanteEspecial;
+
+            const cantidadGuardada = guardado.cantidad;
+
+            ayudanteEspecial.cantidad = Math.min(
+                MAX_ESPECIALES,
+                cantidadGuardada !== undefined
+                    ? numeroSeguro(cantidadGuardada)
+                    : guardado.comprado === true ? 1 : 0
+            );
 
             ayudanteEspecial.intervaloBase = Math.max(
                 100,
                 numeroSeguro(
-                    datos.ayudanteEspecial.intervaloBase,
+                    guardado.intervaloBase,
                     INTERVALO_DISPARO / 2
                 )
             );
 
             ayudanteEspecial.nivelVelocidad = Math.min(
                 PRECIOS_ESPECIAL.length,
-                numeroSeguro(datos.ayudanteEspecial.nivelVelocidad)
+                numeroSeguro(guardado.nivelVelocidad)
             );
 
             ayudanteEspecial.nivelTP = Math.min(
                 PRECIOS_ESPECIAL.length,
-                numeroSeguro(datos.ayudanteEspecial.nivelTP)
+                numeroSeguro(guardado.nivelTP)
             );
+
+            if (Array.isArray(guardado.ultimoDisparo)) {
+                ayudanteEspecial.ultimoDisparo =
+                    guardado.ultimoDisparo.map(() => Date.now());
+            }
         }
     } catch (error) {
         console.error("Error al cargar la partida:", error);
@@ -468,10 +609,11 @@ function guardarProgreso() {
                 nivel: mejoraTPAyudantes.nivel
             },
             ayudanteEspecial: {
-                comprado: ayudanteEspecial.comprado,
+                cantidad: obtenerCantidadEspecial(),
                 intervaloBase: ayudanteEspecial.intervaloBase,
                 nivelVelocidad: ayudanteEspecial.nivelVelocidad,
-                nivelTP: ayudanteEspecial.nivelTP
+                nivelTP: ayudanteEspecial.nivelTP,
+                ultimoDisparo: ayudanteEspecial.ultimoDisparo
             }
         };
 
@@ -673,20 +815,11 @@ configurarMenu(botonAyudantes, listaAyudantes, "AYUDANTES");
 // COMPRAR MEJORAS DE CLICK
 // ============================================
 
+// Los botones antiguos y los nuevos usan la misma función.
 document.querySelectorAll(".comprar-mejora").forEach(function(botonCompra) {
     botonCompra.addEventListener("click", function() {
         const id = Number(botonCompra.dataset.mejora);
-        const mejora = mejoras[id];
-
-        if (!mejora || mejora.comprada) return;
-        if (!requisitoCumplido(mejoras, id)) return;
-        if (tpTotal < mejora.coste) return;
-
-        tpTotal -= mejora.coste;
-        mejora.comprada = true;
-
-        actualizarInterfaz();
-        guardarProgreso();
+        comprarMejoraClick(id);
     });
 });
 
@@ -719,9 +852,10 @@ document.querySelectorAll(".comprar-durabilidad").forEach(function(botonCompra) 
     });
 });
 
-// ============================================
-// RENACER
-// ============================================
+
+ // ============================================
+ // RENACER
+ // ============================================
 
 function renacer() {
     if (tpGanadoRun < 100) {
@@ -749,16 +883,15 @@ function renacer() {
     nivel = 1;
     tpGanadoRun = 0;
 
+    // Reiniciar las mejoras normales de clicks.
     for (const mejora of Object.values(mejoras)) {
         mejora.comprada = false;
     }
 
-    for (const mejora of Object.values(durabilidades)) {
-        mejora.comprada = false;
-    }
+    // NO reiniciar las durabilidades.
+    // Así los ayudantes conservan sus mejoras de descanso.
 
-    mejoraTPAyudantes.nivel = 0;
-
+    // Las mejoras de producción de los ayudantes persisten.
     for (const ayudante of Object.values(ayudantes)) {
         if (!ayudante.comprada) continue;
 
@@ -772,6 +905,7 @@ function renacer() {
 
     mostrarAvisoRobo(`¡RENACIMIENTO! +${ganancia} Esencias`);
 }
+
 
 // ============================================
 // COMPRAS CON ESENCIA
@@ -795,23 +929,30 @@ function comprarMejoraEsencia(tipo) {
 }
 
 function comprarAyudanteEspecial() {
-    if (ayudanteEspecial.comprado || esencia < 15) return;
+    const cantidad = obtenerCantidadEspecial();
 
-    esencia -= 15;
-    ayudanteEspecial.comprado = true;
+    if (cantidad >= MAX_ESPECIALES) {
+        mostrarAvisoRobo("¡Ya tienes los 4 ayudantes especiales!");
+        return;
+    }
 
-    ayudanteEspecial.intervaloBase = obtenerVelocidadNormal() / 2;
-    ayudanteEspecial.ultimoDisparo = Date.now();
+    if (esencia < COSTE_ESPECIAL) return;
 
-    crearSpriteEspecial();
-    colocarSpriteEspecial();
+    esencia -= COSTE_ESPECIAL;
+
+    const id = cantidad + 1;
+    ayudanteEspecial.cantidad = id;
+    ayudanteEspecial.ultimoDisparo[id] = Date.now();
+
+    crearSpriteEspecial(id);
+    colocarTodosLosEspeciales();
 
     actualizarInterfaz();
     guardarProgreso();
 }
 
 function comprarMejoraEspecial(tipo) {
-    if (!ayudanteEspecial.comprado) return;
+    if (obtenerCantidadEspecial() < 1) return;
 
     const propiedad = tipo === "velocidad"
         ? "nivelVelocidad"
@@ -847,7 +988,7 @@ function comprarMejoraTPAyudantes() {
 }
 
 // ============================================
-// AYUDANTES: SPRITES NORMALES
+// AYUDANTES NORMALES: SPRITES
 // ============================================
 
 function crearSpriteAyudante(id) {
@@ -889,23 +1030,24 @@ function crearSpriteAyudante(id) {
 }
 
 // ============================================
-// AYUDANTE ESPECIAL
+// AYUDANTES ESPECIALES: SPRITES MÚLTIPLES
 // ============================================
 
-function crearSpriteEspecial() {
-    if (!zonaAyudantes || !ayudanteEspecial.comprado) return null;
-
-    let sprite = document.getElementById("mini-alma-especial");
-
-    if (sprite) {
-        colocarSpriteEspecial();
-        return sprite;
+function crearSpriteEspecial(id) {
+    if (!zonaAyudantes || id < 1 || id > obtenerCantidadEspecial()) {
+        return null;
     }
+
+    const spriteId = `mini-alma-especial-${id}`;
+    let sprite = document.getElementById(spriteId);
+
+    if (sprite) return sprite;
 
     sprite = crearElemento("button", "mini-alma mini-alma-especial");
     sprite.type = "button";
-    sprite.id = "mini-alma-especial";
-    sprite.setAttribute("aria-label", "Ayudante especial");
+    sprite.id = spriteId;
+    sprite.setAttribute("aria-label", `Ayudante especial ${id}`);
+    sprite.title = `Ayudante especial ${id}`;
 
     const forma = crearElemento("span", "mini-alma-forma");
     forma.setAttribute("aria-hidden", "true");
@@ -916,29 +1058,42 @@ function crearSpriteEspecial() {
 
     zonaAyudantes.appendChild(sprite);
 
-    colocarSpriteEspecial();
+    colocarSpriteEspecial(id);
 
     return sprite;
 }
 
-function colocarSpriteEspecial() {
-    const sprite = document.getElementById("mini-alma-especial");
+function colocarSpriteEspecial(id) {
+    const sprite = document.getElementById(`mini-alma-especial-${id}`);
 
     if (!sprite || !zonaAyudantes || !alma) return;
 
     const zonaRect = zonaAyudantes.getBoundingClientRect();
     const corazonRect = alma.getBoundingClientRect();
 
-    const centroX = corazonRect.left + corazonRect.width / 2 - zonaRect.left;
-    const centroY = corazonRect.top + corazonRect.height / 2 - zonaRect.top;
+    const centroX =
+        corazonRect.left + corazonRect.width / 2 - zonaRect.left;
+
+    const centroY =
+        corazonRect.top + corazonRect.height / 2 - zonaRect.top;
 
     const anchoSprite = sprite.offsetWidth || 42;
     const altoSprite = sprite.offsetHeight || 42;
 
-    const distancia = Math.max(corazonRect.width / 2 + 24, 70);
+    const cantidad = obtenerCantidadEspecial();
 
-    let x = centroX + distancia - anchoSprite / 2;
-    let y = centroY - altoSprite / 2;
+    // Distribución alrededor del corazón:
+    // un ayudante arriba, dos a los lados y cuatro en diagonal.
+    const angulo = -Math.PI / 2 +
+        (2 * Math.PI * (id - 1)) / Math.max(1, cantidad);
+
+    const distancia = Math.max(
+        corazonRect.width / 2 + 40,
+        75
+    );
+
+    let x = centroX + Math.cos(angulo) * distancia - anchoSprite / 2;
+    let y = centroY + Math.sin(angulo) * distancia - altoSprite / 2;
 
     const maxX = Math.max(0, zonaRect.width - anchoSprite);
     const maxY = Math.max(0, zonaRect.height - altoSprite);
@@ -948,6 +1103,12 @@ function colocarSpriteEspecial() {
 
     sprite.style.left = `${x}px`;
     sprite.style.top = `${y}px`;
+}
+
+function colocarTodosLosEspeciales() {
+    for (let id = 1; id <= obtenerCantidadEspecial(); id++) {
+        colocarSpriteEspecial(id);
+    }
 }
 
 // ============================================
@@ -997,10 +1158,10 @@ function actualizarBotonesCompra() {
             tpTotal < mejora.coste;
 
         botonCompra.textContent = mejora.comprada
-            ? "COMPRADA"
+            ? `MEJORA ${id} · COMPRADA`
             : !desbloqueada
-                ? "BLOQUEADA"
-                : "COMPRAR";
+                ? `MEJORA ${id} · BLOQUEADA`
+                : `MEJORA ${id} · ${formatear(mejora.coste)} TP`;
     });
 
     document.querySelectorAll(".comprar-durabilidad").forEach(function(botonCompra) {
@@ -1080,9 +1241,11 @@ function actualizarAyudantes() {
         }
     }
 
-    if (ayudanteEspecial.comprado) {
-        colocarSpriteEspecial();
+    for (let id = 1; id <= obtenerCantidadEspecial(); id++) {
+        crearSpriteEspecial(id);
     }
+
+    colocarTodosLosEspeciales();
 }
 
 function actualizarPanelProgresion() {
@@ -1097,6 +1260,8 @@ function actualizarPanelProgresion() {
         document.getElementById("mejora-especial-tp");
     const botonTPNormal =
         document.getElementById("mejora-tp-ayudantes");
+
+    const cantidadEspecial = obtenerCantidadEspecial();
 
     if (contadorEsencia) {
         contadorEsencia.textContent = `Esencias: ${formatear(esencia)}`;
@@ -1135,8 +1300,14 @@ function actualizarPanelProgresion() {
     });
 
     if (botonEspecial) {
-        botonEspecial.hidden = ayudanteEspecial.comprado;
-        botonEspecial.disabled = esencia < 15;
+        const maximo = cantidadEspecial >= MAX_ESPECIALES;
+
+        botonEspecial.hidden = false;
+        botonEspecial.disabled = maximo || esencia < COSTE_ESPECIAL;
+
+        botonEspecial.textContent = maximo
+            ? `Ayudantes especiales · MÁXIMO ${MAX_ESPECIALES}/${MAX_ESPECIALES}`
+            : `Comprar ayudante especial · ${COSTE_ESPECIAL} Esencias (${cantidadEspecial}/${MAX_ESPECIALES})`;
     }
 
     if (botonVelocidadEspecial) {
@@ -1144,12 +1315,9 @@ function actualizarPanelProgresion() {
         const maximo = nivelActual >= PRECIOS_ESPECIAL.length;
         const coste = maximo ? 0 : PRECIOS_ESPECIAL[nivelActual];
 
-        botonVelocidadEspecial.hidden = !ayudanteEspecial.comprado;
-
+        botonVelocidadEspecial.hidden = cantidadEspecial === 0;
         botonVelocidadEspecial.disabled =
-            !ayudanteEspecial.comprado ||
-            maximo ||
-            esencia < coste;
+            cantidadEspecial === 0 || maximo || esencia < coste;
 
         botonVelocidadEspecial.textContent = maximo
             ? "Velocidad especial · MÁXIMO"
@@ -1161,12 +1329,9 @@ function actualizarPanelProgresion() {
         const maximo = nivelActual >= PRECIOS_ESPECIAL.length;
         const coste = maximo ? 0 : PRECIOS_ESPECIAL[nivelActual];
 
-        botonTPEspecial.hidden = !ayudanteEspecial.comprado;
-
+        botonTPEspecial.hidden = cantidadEspecial === 0;
         botonTPEspecial.disabled =
-            !ayudanteEspecial.comprado ||
-            maximo ||
-            esencia < coste;
+            cantidadEspecial === 0 || maximo || esencia < coste;
 
         botonTPEspecial.textContent = maximo
             ? "TP especial · MÁXIMO"
@@ -1243,18 +1408,15 @@ function crearEnemigo() {
     elemento.style.setProperty("--color-enemigo", color);
 
     const forma = crearElemento("span", "alma-enemiga-forma");
-    forma.setAttribute("aria-hidden", "true");
-
     const nombre = crearElemento("span", "nombre-enemigo", datos.nombre);
     const vida = crearElemento("span", "vida-enemigo");
     const textoVida = crearElemento("span", "texto-vida-enemigo");
 
+    forma.setAttribute("aria-hidden", "true");
     elemento.append(forma, nombre, vida, textoVida);
 
     for (let i = 0; i < datos.vida; i++) {
-        vida.appendChild(
-            crearElemento("span", "vida-enemigo-segmento")
-        );
+        vida.appendChild(crearElemento("span", "vida-enemigo-segmento"));
     }
 
     const ahora = Date.now();
@@ -1291,7 +1453,7 @@ function crearEnemigo() {
 
     clicks = Math.max(0, clicks - enemigo.roboInicial);
 
-    mostrarAvisoRobo(`${datos.nombre}: -${enemigo.roboInicial} clicks`);
+    mostrarAvisoRobo(`${datos.nombre}: -${datos.roboInicial} clicks`);
 
     actualizarInterfaz();
     guardarProgreso();
@@ -1305,10 +1467,7 @@ function actualizarVidaEnemigo(enemigo) {
     );
 
     segmentos.forEach((segmento, indice) => {
-        segmento.classList.toggle(
-            "activo",
-            indice < enemigo.vidaActual
-        );
+        segmento.classList.toggle("activo", indice < enemigo.vidaActual);
     });
 
     enemigo.textoVida.textContent =
@@ -1318,10 +1477,7 @@ function actualizarVidaEnemigo(enemigo) {
 function atacarEnemigo(enemigo, danio = 1) {
     if (!enemigo || enemigo.derrotado) return;
 
-    enemigo.vidaActual = Math.max(
-        0,
-        enemigo.vidaActual - danio
-    );
+    enemigo.vidaActual = Math.max(0, enemigo.vidaActual - danio);
 
     enemigo.elemento.classList.remove("recibiendo-dano");
     void enemigo.elemento.offsetWidth;
@@ -1348,9 +1504,7 @@ function derrotarEnemigo(enemigo) {
 
     setTimeout(() => enemigo.elemento.remove(), 300);
 
-    enemigos = enemigos.filter(
-        actual => actual.id !== enemigo.id
-    );
+    enemigos = enemigos.filter(actual => actual.id !== enemigo.id);
 
     programarSiguienteEnemigo();
 }
@@ -1374,11 +1528,7 @@ function actualizarOrbitaEnemigos() {
 
     const radioMaximo = Math.max(
         radioMinimo,
-        Math.min(
-            ancho / 2 - 38,
-            alto / 2 - 35,
-            300
-        )
+        Math.min(ancho / 2 - 38, alto / 2 - 35, 300)
     );
 
     enemigos.forEach((enemigo, indice) => {
@@ -1435,17 +1585,10 @@ function actualizarRobosEnemigos() {
 
     const partes = [];
 
-    if (clicksRobados > 0) {
-        partes.push(`-${clicksRobados} clicks`);
-    }
+    if (clicksRobados > 0) partes.push(`-${clicksRobados} clicks`);
+    if (tpRobado > 0) partes.push(`-${tpRobado} TP`);
 
-    if (tpRobado > 0) {
-        partes.push(`-${tpRobado} TP`);
-    }
-
-    mostrarAvisoRobo(
-        `¡LAS ALMAS TE ROBAN! ${partes.join(" · ")}`
-    );
+    mostrarAvisoRobo(`¡LAS ALMAS TE ROBAN! ${partes.join(" · ")}`);
 
     actualizarInterfaz();
     guardarProgreso();
@@ -1519,7 +1662,6 @@ function lanzarProyectilDesde(sprite, especial = false) {
     );
 
     proyectil.setAttribute("aria-hidden", "true");
-
     zonaAyudantes.appendChild(proyectil);
 
     proyectiles.push({
@@ -1579,11 +1721,9 @@ function actualizarProyectiles() {
                 }
             }
         } else {
-            // Todo proyectil que llegue al corazón genera clicks.
             darRecompensa(1);
             animarCorazon();
 
-            // El ayudante especial también conserva su producción extra de TP.
             if (proyectil.especial) {
                 darTPEspecial(obtenerTPEspecial());
             }
@@ -1621,26 +1761,28 @@ function actualizarCicloAyudantes() {
                 continue;
             }
 
-            if (
-                ahora - ayudante.ultimoDisparo >= obtenerVelocidadNormal()
-            ) {
+            if (ahora - ayudante.ultimoDisparo >= obtenerVelocidadNormal()) {
                 lanzarProyectil(id);
                 ayudante.ultimoDisparo = ahora;
             }
         }
     }
 
-    if (ayudanteEspecial.comprado) {
-        const spriteEspecial = crearSpriteEspecial();
+    // Cada ayudante especial dispara de forma independiente.
+    for (let id = 1; id <= obtenerCantidadEspecial(); id++) {
+        const sprite = crearSpriteEspecial(id);
 
-        colocarSpriteEspecial();
+        if (ayudanteEspecial.ultimoDisparo[id] === undefined) {
+            ayudanteEspecial.ultimoDisparo[id] = ahora;
+        }
 
         if (
-            spriteEspecial &&
-            ahora - ayudanteEspecial.ultimoDisparo >= obtenerIntervaloEspecial()
+            sprite &&
+            ahora - ayudanteEspecial.ultimoDisparo[id] >=
+                obtenerIntervaloEspecial()
         ) {
-            lanzarProyectilDesde(spriteEspecial, true);
-            ayudanteEspecial.ultimoDisparo = ahora;
+            lanzarProyectilDesde(sprite, true);
+            ayudanteEspecial.ultimoDisparo[id] = ahora;
         }
     }
 
@@ -1665,6 +1807,7 @@ if (boton) {
 // ============================================
 
 crearPanelesNuevos();
+crearMejorasClickAdicionales();
 cargarProgreso();
 
 for (const id of Object.keys(ayudantes).map(Number)) {
@@ -1678,12 +1821,13 @@ for (const id of Object.keys(ayudantes).map(Number)) {
     }
 }
 
-if (ayudanteEspecial.comprado) {
-    ayudanteEspecial.ultimoDisparo = Date.now();
-
-    crearSpriteEspecial();
-    colocarSpriteEspecial();
+for (let id = 1; id <= obtenerCantidadEspecial(); id++) {
+    ayudanteEspecial.ultimoDisparo[id] = Date.now();
+    crearSpriteEspecial(id);
 }
+
+colocarTodosLosEspeciales();
+colocarBotonesJuntos();
 
 actualizarInterfaz();
 programarSiguienteEnemigo();
@@ -1692,4 +1836,7 @@ setInterval(actualizarCicloAyudantes, 50);
 setInterval(actualizarEnemigos, 100);
 setInterval(guardarProgreso, 5000);
 
-window.addEventListener("resize", colocarSpriteEspecial);
+window.addEventListener("resize", function() {
+    colocarTodosLosEspeciales();
+    colocarBotonesJuntos();
+});
