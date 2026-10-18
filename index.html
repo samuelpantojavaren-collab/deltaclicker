@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DELTACLICKER</title>
+    <title>DELTACLICKER 0.2.0</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -22,12 +22,18 @@
     <button id="boton-reset" type="button">RESET</button>
 
     <div class="juego">
-        <button id="boton-click" aria-label="Obtener Clicks">
+        <button id="boton-click" type="button" aria-label="Obtener Clicks">
             <span class="alma"></span>
         </button>
+
+        <!-- Zona de los ayudantes -->
         <div id="zona-ayudantes"></div>
+
+        <!-- Zona de las almas enemigas -->
+        <div id="zona-enemigos" aria-label="Enemigos"></div>
     </div>
 
+    <!-- Barra de TP -->
     <div id="panel-tp">
         <div id="texto-tp">0%</div>
         <div id="barra-tp">
@@ -37,7 +43,7 @@
 
     <!-- Menú de mejoras -->
     <div id="menu-mejoras">
-        <button id="boton-mejoras" aria-expanded="false">
+        <button id="boton-mejoras" type="button" aria-expanded="false">
             MEJORAS ▼
         </button>
 
@@ -48,7 +54,7 @@
                     <span class="efecto-mejora">Multiplicador ×2</span>
                     <span class="precio-mejora">Coste: 1 TP</span>
                 </div>
-                <button class="comprar-mejora" data-mejora="1">COMPRAR</button>
+                <button class="comprar-mejora" data-mejora="1" type="button">COMPRAR</button>
             </div>
 
             <div class="mejora">
@@ -57,7 +63,7 @@
                     <span class="efecto-mejora">Multiplicador ×3</span>
                     <span class="precio-mejora">Coste: 2 TP</span>
                 </div>
-                <button class="comprar-mejora" data-mejora="2">COMPRAR</button>
+                <button class="comprar-mejora" data-mejora="2" type="button">COMPRAR</button>
             </div>
 
             <div class="mejora">
@@ -66,7 +72,7 @@
                     <span class="efecto-mejora">Multiplicador ×4</span>
                     <span class="precio-mejora">Coste: 3 TP</span>
                 </div>
-                <button class="comprar-mejora" data-mejora="3">COMPRAR</button>
+                <button class="comprar-mejora" data-mejora="3" type="button">COMPRAR</button>
             </div>
 
             <div class="mejora">
@@ -75,7 +81,7 @@
                     <span class="efecto-mejora">Multiplicador ×6</span>
                     <span class="precio-mejora">Coste: 5 TP</span>
                 </div>
-                <button class="comprar-mejora" data-mejora="4">COMPRAR</button>
+                <button class="comprar-mejora" data-mejora="4" type="button">COMPRAR</button>
             </div>
 
             <div class="mejora">
@@ -84,7 +90,7 @@
                     <span class="efecto-mejora">Multiplicador ×9</span>
                     <span class="precio-mejora">Coste: 8 TP</span>
                 </div>
-                <button class="comprar-mejora" data-mejora="5">COMPRAR</button>
+                <button class="comprar-mejora" data-mejora="5" type="button">COMPRAR</button>
             </div>
 
             <div class="mejora">
@@ -93,7 +99,7 @@
                     <span class="efecto-mejora">Multiplicador ×13</span>
                     <span class="precio-mejora">Coste: 13 TP</span>
                 </div>
-                <button class="comprar-mejora" data-mejora="6">COMPRAR</button>
+                <button class="comprar-mejora" data-mejora="6" type="button">COMPRAR</button>
             </div>
 
             <div class="mejora">
@@ -102,7 +108,7 @@
                     <span class="efecto-mejora">Multiplicador ×20</span>
                     <span class="precio-mejora">Coste: 21 TP</span>
                 </div>
-                <button class="comprar-mejora" data-mejora="7">COMPRAR</button>
+                <button class="comprar-mejora" data-mejora="7" type="button">COMPRAR</button>
             </div>
 
             <div class="mejora">
@@ -111,7 +117,7 @@
                     <span class="efecto-mejora">Multiplicador ×30</span>
                     <span class="precio-mejora">Coste: 34 TP</span>
                 </div>
-                <button class="comprar-mejora" data-mejora="8">COMPRAR</button>
+                <button class="comprar-mejora" data-mejora="8" type="button">COMPRAR</button>
             </div>
 
             <div class="separador-menu">AYUDANTES DURADEROS</div>
@@ -122,7 +128,7 @@
                     <span class="efecto-mejora">Más tiempo despierto</span>
                     <span class="precio-mejora">Coste: 10 TP</span>
                 </div>
-                <button class="comprar-durabilidad" data-durabilidad="1">COMPRAR</button>
+                <button class="comprar-durabilidad" data-durabilidad="1" type="button">COMPRAR</button>
             </div>
 
             <div class="mejora">
@@ -131,7 +137,7 @@
                     <span class="efecto-mejora">Todavía más tiempo</span>
                     <span class="precio-mejora">Coste: 50 TP</span>
                 </div>
-                <button class="comprar-durabilidad" data-durabilidad="2">COMPRAR</button>
+                <button class="comprar-durabilidad" data-durabilidad="2" type="button">COMPRAR</button>
             </div>
 
             <div class="mejora">
@@ -140,14 +146,14 @@
                     <span class="efecto-mejora">Nunca duermen</span>
                     <span class="precio-mejora">Coste: 100 TP</span>
                 </div>
-                <button class="comprar-durabilidad" data-durabilidad="3">COMPRAR</button>
+                <button class="comprar-durabilidad" data-durabilidad="3" type="button">COMPRAR</button>
             </div>
         </div>
     </div>
 
     <!-- Menú de ayudantes -->
     <div id="menu-ayudantes">
-        <button id="boton-ayudantes" aria-expanded="false">
+        <button id="boton-ayudantes" type="button" aria-expanded="false">
             AYUDANTES ▼
         </button>
 
@@ -158,74 +164,75 @@
                     <span class="efecto-mejora">Coste: 10 clicks</span>
                     <span class="estado-ayudante" id="estado-ayudante-1">Sin comprar</span>
                 </div>
-                <button class="comprar-ayudante" data-ayudante="1">COMPRAR</button>
+                <button class="comprar-ayudante" data-ayudante="1" type="button">COMPRAR</button>
             </div>
 
             <div class="ayudante">
                 <div class="info-mejora">
                     <span class="nombre-mejora">Mini alma 2</span>
-                    <span class="efecto-mejora">Coste: 100 clicks</span>
+                    <span class="efecto-mejora">Coste: 75 clicks</span>
                     <span class="estado-ayudante" id="estado-ayudante-2">Sin comprar</span>
                 </div>
-                <button class="comprar-ayudante" data-ayudante="2">COMPRAR</button>
+                <button class="comprar-ayudante" data-ayudante="2" type="button">COMPRAR</button>
             </div>
 
             <div class="ayudante">
                 <div class="info-mejora">
                     <span class="nombre-mejora">Mini alma 3</span>
-                    <span class="efecto-mejora">Coste: 1.000 clicks</span>
+                    <span class="efecto-mejora">Coste: 500 clicks</span>
                     <span class="estado-ayudante" id="estado-ayudante-3">Sin comprar</span>
                 </div>
-                <button class="comprar-ayudante" data-ayudante="3">COMPRAR</button>
+                <button class="comprar-ayudante" data-ayudante="3" type="button">COMPRAR</button>
             </div>
 
             <div class="ayudante">
                 <div class="info-mejora">
                     <span class="nombre-mejora">Mini alma 4</span>
-                    <span class="efecto-mejora">Coste: 10.000 clicks</span>
+                    <span class="efecto-mejora">Coste: 3.500 clicks</span>
                     <span class="estado-ayudante" id="estado-ayudante-4">Sin comprar</span>
                 </div>
-                <button class="comprar-ayudante" data-ayudante="4">COMPRAR</button>
+                <button class="comprar-ayudante" data-ayudante="4" type="button">COMPRAR</button>
             </div>
 
             <div class="ayudante">
                 <div class="info-mejora">
                     <span class="nombre-mejora">Mini alma 5</span>
-                    <span class="efecto-mejora">Coste: 100.000 clicks</span>
+                    <span class="efecto-mejora">Coste: 25.000 clicks</span>
                     <span class="estado-ayudante" id="estado-ayudante-5">Sin comprar</span>
                 </div>
-                <button class="comprar-ayudante" data-ayudante="5">COMPRAR</button>
+                <button class="comprar-ayudante" data-ayudante="5" type="button">COMPRAR</button>
             </div>
 
             <div class="ayudante">
                 <div class="info-mejora">
                     <span class="nombre-mejora">Mini alma 6</span>
-                    <span class="efecto-mejora">Coste: 1.000.000 clicks</span>
+                    <span class="efecto-mejora">Coste: 180.000 clicks</span>
                     <span class="estado-ayudante" id="estado-ayudante-6">Sin comprar</span>
                 </div>
-                <button class="comprar-ayudante" data-ayudante="6">COMPRAR</button>
+                <button class="comprar-ayudante" data-ayudante="6" type="button">COMPRAR</button>
             </div>
 
             <div class="ayudante">
                 <div class="info-mejora">
                     <span class="nombre-mejora">Mini alma 7</span>
-                    <span class="efecto-mejora">Coste: 10.000.000 clicks</span>
+                    <span class="efecto-mejora">Coste: 1.250.000 clicks</span>
                     <span class="estado-ayudante" id="estado-ayudante-7">Sin comprar</span>
                 </div>
-                <button class="comprar-ayudante" data-ayudante="7">COMPRAR</button>
+                <button class="comprar-ayudante" data-ayudante="7" type="button">COMPRAR</button>
             </div>
 
             <div class="ayudante">
                 <div class="info-mejora">
                     <span class="nombre-mejora">Mini alma 8</span>
-                    <span class="efecto-mejora">Coste: 100.000.000 clicks</span>
+                    <span class="efecto-mejora">Coste: 8.500.000 clicks</span>
                     <span class="estado-ayudante" id="estado-ayudante-8">Sin comprar</span>
                 </div>
-                <button class="comprar-ayudante" data-ayudante="8">COMPRAR</button>
+                <button class="comprar-ayudante" data-ayudante="8" type="button">COMPRAR</button>
             </div>
         </div>
     </div>
 
+    <!-- El panel de renacimiento y esencias se crea desde main.js -->
     <script src="main.js"></script>
 </body>
 </html>

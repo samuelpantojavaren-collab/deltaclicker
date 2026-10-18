@@ -32,7 +32,9 @@ body::before {
     animation: resplandor 10s ease-in-out infinite;
 }
 
-/* CONTADORES */
+/* ==========================================
+   CONTADORES
+   ========================================== */
 
 #contador {
     position: fixed;
@@ -40,7 +42,7 @@ body::before {
     left: 20px;
     font-size: 14px;
     line-height: 1.8;
-    z-index: 2;
+    z-index: 8;
 }
 
 #nivel {
@@ -48,7 +50,7 @@ body::before {
     top: 60px;
     left: 20px;
     font-size: 12px;
-    z-index: 2;
+    z-index: 8;
 }
 
 #contador-tp {
@@ -58,10 +60,12 @@ body::before {
     font-size: 12px;
     line-height: 1.8;
     color: #ffff00;
-    z-index: 2;
+    z-index: 8;
 }
 
-/* RESET */
+/* ==========================================
+   BOTÓN DE REINICIO
+   ========================================== */
 
 #boton-reset {
     position: fixed;
@@ -87,7 +91,9 @@ body::before {
     background: #770000;
 }
 
-/* ESCENARIO CENTRAL */
+/* ==========================================
+   ESCENARIO CENTRAL
+   ========================================== */
 
 .juego {
     min-height: 100vh;
@@ -98,7 +104,9 @@ body::before {
     overflow: hidden;
 }
 
-/* CORAZÓN PRINCIPAL */
+/* ==========================================
+   CORAZÓN PRINCIPAL
+   ========================================== */
 
 #boton-click {
     width: 240px;
@@ -157,6 +165,10 @@ body::before {
     top: 0;
 }
 
+.alma.latir {
+    animation: latido 0.25s ease-in-out 1;
+}
+
 @keyframes latido {
     0%, 100% {
         transform: rotate(45deg) scale(1);
@@ -167,16 +179,19 @@ body::before {
     }
 }
 
-.alma.latir {
-    animation: latido 0.25s ease-in-out 1;
-}
-
 @keyframes resplandor {
-    0%, 100% { opacity: 0.25; }
-    50% { opacity: 1; }
+    0%, 100% {
+        opacity: 0.25;
+    }
+
+    50% {
+        opacity: 1;
+    }
 }
 
-/* BARRA TP */
+/* ==========================================
+   BARRA TP
+   ========================================== */
 
 #panel-tp {
     position: fixed;
@@ -188,7 +203,7 @@ body::before {
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    z-index: 2;
+    z-index: 8;
 }
 
 #texto-tp {
@@ -215,7 +230,9 @@ body::before {
     transition: height 0.1s linear;
 }
 
-/* MENÚS */
+/* ==========================================
+   MENÚS DE MEJORAS Y AYUDANTES
+   ========================================== */
 
 #menu-mejoras,
 #menu-ayudantes {
@@ -350,7 +367,9 @@ body::before {
     color: #00ff99;
 }
 
-/* ZONA DE LAS MINI ALMAS */
+/* ==========================================
+   ZONA DE LAS MINI ALMAS
+   ========================================== */
 
 #zona-ayudantes {
     position: absolute;
@@ -360,7 +379,9 @@ body::before {
     z-index: 3;
 }
 
-/* MINI ALMAS */
+/* ==========================================
+   MINI ALMAS NORMALES
+   ========================================== */
 
 .mini-alma {
     position: absolute;
@@ -417,7 +438,7 @@ body::before {
     top: 0;
 }
 
-/* POSICIONES: OCHO ALMAS ALREDEDOR DEL CORAZÓN */
+/* POSICIONES DE LAS OCHO ALMAS */
 
 #mini-alma-1 {
     left: calc(50% - 175px);
@@ -466,19 +487,29 @@ body::before {
     animation-delay: 1.05s;
 }
 
-/* MOVIMIENTO Y LATIDO */
-
 @keyframes flotar-alma {
-    0%, 100% { translate: 0 0; }
-    50% { translate: 0 -8px; }
+    0%, 100% {
+        translate: 0 0;
+    }
+
+    50% {
+        translate: 0 -8px;
+    }
 }
 
 @keyframes latido-mini {
-    0%, 100% { scale: 1; }
-    50% { scale: 1.12; }
+    0%, 100% {
+        scale: 1;
+    }
+
+    50% {
+        scale: 1.12;
+    }
 }
 
-/* ALMAS DORMIDAS */
+/* ==========================================
+   ALMAS DORMIDAS
+   ========================================== */
 
 .mini-alma.dormida {
     animation: none !important;
@@ -523,8 +554,13 @@ body::before {
         transform: translate(-20%, 5px) scale(0.8);
     }
 
-    25% { opacity: 1; }
-    70% { opacity: 0.8; }
+    25% {
+        opacity: 1;
+    }
+
+    70% {
+        opacity: 0.8;
+    }
 
     100% {
         opacity: 0;
@@ -532,32 +568,538 @@ body::before {
     }
 }
 
-/* PROYECTILES */
+/* ==========================================
+   ENEMIGOS
+   ========================================== */
 
-.mini-alma-proyectil {
+#zona-enemigos {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 4;
+}
+
+.alma-enemiga {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 76px;
+    min-height: 76px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    pointer-events: auto;
+    cursor: crosshair;
+    appearance: none;
+    -webkit-appearance: none;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+}
+
+.alma-enemiga:focus-visible {
+    outline: 2px dashed #fff;
+    outline-offset: 3px;
+}
+
+.alma-enemiga-forma {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    background: var(--color-enemigo, #d6c6a5);
+    transform: rotate(45deg);
+    image-rendering: pixelated;
+    pointer-events: none;
+    filter:
+        drop-shadow(0 0 4px var(--color-enemigo, #d6c6a5))
+        drop-shadow(0 0 10px var(--color-enemigo, #d6c6a5));
+    animation: pulso-enemigo 0.8s ease-in-out infinite;
+}
+
+.alma-enemiga-forma::before,
+.alma-enemiga-forma::after {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background: var(--color-enemigo, #d6c6a5);
+}
+
+.alma-enemiga-forma::before {
+    top: -11px;
+    left: 0;
+}
+
+.alma-enemiga-forma::after {
+    left: -11px;
+    top: 0;
+}
+
+.alma-errante {
+    --color-enemigo: #e7e7e7;
+}
+
+.alma-corrupta {
+    --color-enemigo: #b000ff;
+}
+
+.alma-abismal {
+    --color-enemigo: #ff3030;
+}
+
+.alma-corrupta .alma-enemiga-forma {
+    filter:
+        drop-shadow(0 0 5px #b000ff)
+        drop-shadow(0 0 12px #b000ff)
+        drop-shadow(0 0 20px #7000aa);
+}
+
+.alma-abismal .alma-enemiga-forma {
+    filter:
+        drop-shadow(0 0 5px #ff3030)
+        drop-shadow(0 0 12px #ff0000)
+        drop-shadow(0 0 24px #990000);
+    animation-duration: 0.5s;
+}
+
+/* VIDA DEL ENEMIGO */
+
+.vida-enemigo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 8px;
+    pointer-events: none;
+}
+
+.vida-enemigo-segmento {
+    width: 7px;
+    height: 7px;
+    border: 1px solid #fff;
+    background: #333;
+    box-shadow: 0 0 3px #000;
+}
+
+.vida-enemigo-segmento.activo {
+    background: var(--color-enemigo, #fff);
+    box-shadow: 0 0 5px var(--color-enemigo, #fff);
+}
+
+.nombre-enemigo {
+    color: #fff;
+    font-size: 6px;
+    line-height: 1.6;
+    white-space: nowrap;
+    text-shadow: 0 0 5px #000, 1px 1px #000;
+    pointer-events: none;
+}
+
+.texto-vida-enemigo {
+    color: #ffff00;
+    font-size: 7px;
+    line-height: 1.4;
+    text-shadow: 0 0 5px #000;
+    pointer-events: none;
+}
+
+/* DAÑO RECIBIDO */
+
+.alma-enemiga.recibiendo-dano {
+    animation: sacudida-enemigo 0.16s steps(2, end);
+}
+
+.alma-enemiga.recibiendo-dano .alma-enemiga-forma {
+    background: #fff;
+    filter: drop-shadow(0 0 12px #fff);
+}
+
+.alma-enemiga.recibiendo-dano .alma-enemiga-forma::before,
+.alma-enemiga.recibiendo-dano .alma-enemiga-forma::after {
+    background: #fff;
+}
+
+@keyframes sacudida-enemigo {
+    0%, 100% {
+        margin-left: 0;
+    }
+
+    25% {
+        margin-left: -5px;
+    }
+
+    75% {
+        margin-left: 5px;
+    }
+}
+
+@keyframes pulso-enemigo {
+    0%, 100% {
+        scale: 1;
+    }
+
+    50% {
+        scale: 1.12;
+    }
+}
+
+/* ==========================================
+   PROYECTILES
+   ========================================== */
+
+.mini-alma-proyectil,
+.proyectil-enemigo,
+.proyectil-especial {
     position: absolute;
     top: 0;
     left: 0;
+    pointer-events: none;
+    z-index: 7;
+    animation: destello-proyectil 0.2s steps(2, end) infinite;
+}
+
+.mini-alma-proyectil {
     width: 10px;
     height: 10px;
     background: #ff2222;
     box-shadow: 0 0 6px #ff0000, 0 0 12px #ff0000;
-    pointer-events: none;
-    z-index: 4;
-    animation: destello-proyectil 0.2s steps(2, end) infinite;
+}
+
+.proyectil-enemigo {
+    width: 9px;
+    height: 9px;
+    background: #00ff99;
+    border: 1px solid #caffee;
+    box-shadow:
+        0 0 5px #00ff99,
+        0 0 12px #00ff99;
+}
+
+.proyectil-enemigo.abismal {
+    background: #ff3030;
+    border-color: #ffaaaa;
+    box-shadow:
+        0 0 5px #ff3030,
+        0 0 12px #ff0000;
+}
+
+/* Proyectiles cian del ayudante especial */
+
+.proyectil-especial {
+    width: 10px;
+    height: 10px;
+    background: #00ffff;
+    border: 1px solid #ffffff;
+    box-shadow:
+        0 0 6px #00ffff,
+        0 0 14px #0088ff;
 }
 
 @keyframes destello-proyectil {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.45; }
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.45;
+    }
 }
+
+/* DERROTA DEL ENEMIGO */
+
+.alma-enemiga.derrotada {
+    animation: desaparecer-enemigo 0.25s steps(3, end) forwards;
+    pointer-events: none;
+}
+
+@keyframes desaparecer-enemigo {
+    0% {
+        opacity: 1;
+        scale: 1;
+        filter: brightness(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        scale: 1.3;
+        filter: brightness(3);
+    }
+
+    100% {
+        opacity: 0;
+        scale: 0.3;
+        filter: brightness(2);
+    }
+}
+
+/* ==========================================
+   AVISO DE ROBO
+   ========================================== */
+
+.aviso-robo {
+    position: fixed;
+    top: 125px;
+    left: 20px;
+    max-width: min(360px, calc(100vw - 40px));
+    color: #ff5555;
+    font-size: 8px;
+    line-height: 1.8;
+    text-shadow: 0 0 7px #ff0000;
+    pointer-events: none;
+    z-index: 9;
+    animation: aviso-robo 0.3s steps(2, end);
+}
+
+@keyframes aviso-robo {
+    0% {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================
+   PANEL DE PROGRESIÓN
+   ========================================== */
+
+#panel-progresion {
+    position: fixed;
+    right: 20px;
+    bottom: 75px;
+    z-index: 19;
+    width: min(340px, calc(100vw - 40px));
+    max-height: 65vh;
+    overflow-y: auto;
+    padding: 16px;
+    background: rgba(12, 5, 5, 0.96);
+    border: 2px solid #ff3333;
+    box-shadow:
+        0 0 10px #ff000044,
+        0 0 25px #000;
+    color: white;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    line-height: 1.8;
+    scrollbar-color: #ff3333 #100909;
+}
+
+#panel-progresion[hidden] {
+    display: none !important;
+}
+
+#panel-progresion h2,
+#panel-progresion h3 {
+    color: #ff5555;
+    font-size: 10px;
+    line-height: 1.8;
+    margin: 8px 0 12px;
+    text-shadow: 0 0 8px #ff000066;
+}
+
+#panel-progresion p {
+    color: #d6c6a5;
+    font-size: 8px;
+    line-height: 2;
+    overflow-wrap: anywhere;
+}
+
+#panel-progresion strong {
+    color: #ffff00;
+}
+
+#panel-progresion > div,
+#panel-progresion > section {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #513c2a;
+}
+
+#panel-progresion #contador-esencia,
+#panel-progresion .contador-esencia {
+    color: #00ffcc;
+    text-shadow: 0 0 8px #00ffcc66;
+}
+
+.lista-esencia,
+.lista-especial,
+.lista-tp-ayudantes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+#panel-progresion button {
+    max-width: 100%;
+    padding: 9px 8px;
+    background: #160707;
+    border: 1px solid #ff3333;
+    color: #ff7777;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    transition:
+        background 0.15s,
+        box-shadow 0.15s,
+        color 0.15s;
+}
+
+#panel-progresion button:hover:not(:disabled) {
+    background: #420000;
+    color: #ffffff;
+    box-shadow: 0 0 10px #ff000066;
+}
+
+#panel-progresion button:active:not(:disabled) {
+    background: #650000;
+}
+
+#panel-progresion button:disabled {
+    color: #777;
+    border-color: #555;
+    background: #111;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* RENACIMIENTO */
+
+#boton-renacer {
+    width: 100%;
+    margin-top: 8px;
+    border-color: #00ffcc !important;
+    color: #00ffcc !important;
+    background: #001b18 !important;
+}
+
+#boton-renacer:hover:not(:disabled) {
+    background: #004438 !important;
+    box-shadow: 0 0 12px #00ffcc66 !important;
+}
+
+/* BOTÓN PARA ABRIR EL PANEL */
+
+#boton-progresion {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 20;
+    padding: 14px;
+    background: #160707;
+    border: 2px solid #ff3333;
+    color: #ff7777;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    cursor: pointer;
+}
+
+#boton-progresion:hover {
+    background: #420000;
+    box-shadow: 0 0 12px #ff000066;
+}
+
+/* ==========================================
+   AYUDANTE ESPECIAL: IDENTIDAD CIAN
+   ========================================== */
+
+#zona-ayudantes .mini-alma-especial {
+    position: absolute !important;
+    width: 42px;
+    height: 42px;
+    margin: 0 !important;
+    padding: 0;
+    right: auto !important;
+    bottom: auto !important;
+    background: transparent;
+    border: 2px solid #00ffff;
+    border-radius: 8px;
+    box-shadow:
+        0 0 8px #00ffff,
+        0 0 18px #0088ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    cursor: pointer;
+    z-index: 8;
+    appearance: none;
+    -webkit-appearance: none;
+    animation: flotar-especial 1.8s ease-in-out infinite;
+}
+
+/* Evita que herede el latido de las mini almas normales */
+
+#zona-ayudantes .mini-alma-especial {
+    animation-name: flotar-especial;
+    animation-duration: 1.8s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+
+/* Oculta la forma roja heredada */
+
+#zona-ayudantes .mini-alma-especial .mini-alma-forma {
+    display: none !important;
+}
+
+/* Núcleo cian pixelado */
+
+#zona-ayudantes .mini-alma-especial::before {
+    content: "";
+    display: block;
+    width: 16px;
+    height: 16px;
+    background: #00ffff;
+    transform: rotate(45deg);
+    box-shadow:
+        0 0 6px #00ffff,
+        0 0 14px #0088ff;
+}
+
+/* Elimina adornos heredados */
+
+#zona-ayudantes .mini-alma-especial::after {
+    content: none !important;
+}
+
+#zona-ayudantes .mini-alma-especial:hover {
+    filter: brightness(1.4);
+}
+
+@keyframes flotar-especial {
+    0%, 100% {
+        translate: 0 0;
+    }
+
+    50% {
+        translate: 0 -6px;
+    }
+}
+
+/* ==========================================
+   ACCESIBILIDAD
+   ========================================== */
 
 button:focus-visible {
     outline: 2px dashed #ffff00;
     outline-offset: 4px;
 }
 
-/* PANTALLAS PEQUEÑAS */
+/* ==========================================
+   PANTALLAS PEQUEÑAS
+   ========================================== */
 
 @media (max-width: 650px) {
     #boton-click {
@@ -663,5 +1205,82 @@ button:focus-visible {
     #mini-alma-8 {
         left: calc(50% - 100px);
         top: calc(50% - 130px);
+    }
+
+    /* Enemigos */
+
+    .alma-enemiga {
+        width: 65px;
+        min-height: 65px;
+        gap: 5px;
+    }
+
+    .alma-enemiga-forma {
+        width: 18px;
+        height: 18px;
+    }
+
+    .alma-enemiga-forma::before,
+    .alma-enemiga-forma::after {
+        width: 18px;
+        height: 18px;
+    }
+
+    .alma-enemiga-forma::before {
+        top: -9px;
+    }
+
+    .alma-enemiga-forma::after {
+        left: -9px;
+    }
+
+    .nombre-enemigo {
+        font-size: 5px;
+    }
+
+    .texto-vida-enemigo {
+        font-size: 6px;
+    }
+
+    .vida-enemigo-segmento {
+        width: 5px;
+        height: 5px;
+    }
+
+    .aviso-robo {
+        top: 115px;
+        left: 10px;
+        font-size: 7px;
+    }
+
+    /* Panel de progresión */
+
+    #panel-progresion {
+        right: 10px;
+        bottom: 60px;
+        width: calc(100vw - 20px);
+        max-height: 60vh;
+        padding: 12px;
+    }
+
+    #panel-progresion h2,
+    #panel-progresion h3 {
+        font-size: 8px;
+    }
+
+    #panel-progresion button {
+        font-size: 6px;
+        padding: 8px 6px;
+    }
+
+    #panel-progresion p {
+        font-size: 7px;
+    }
+
+    #boton-progresion {
+        right: 10px;
+        bottom: 10px;
+        padding: 10px;
+        font-size: 7px;
     }
 }
