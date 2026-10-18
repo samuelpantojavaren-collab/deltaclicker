@@ -1,0 +1,667 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: #000;
+    color: white;
+    font-family: 'Press Start 2P', monospace;
+    position: relative;
+    isolation: isolate;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(
+        ellipse at center,
+        #650000 0%,
+        #350000 25%,
+        #180000 50%,
+        #080000 72%,
+        #000000 100%
+    );
+    animation: resplandor 10s ease-in-out infinite;
+}
+
+/* CONTADORES */
+
+#contador {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    font-size: 14px;
+    line-height: 1.8;
+    z-index: 2;
+}
+
+#nivel {
+    position: fixed;
+    top: 60px;
+    left: 20px;
+    font-size: 12px;
+    z-index: 2;
+}
+
+#contador-tp {
+    position: fixed;
+    top: 90px;
+    left: 20px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: #ffff00;
+    z-index: 2;
+}
+
+/* RESET */
+
+#boton-reset {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 20;
+    padding: 12px 14px;
+    background: #180000;
+    border: 2px solid #ff3333;
+    color: #ff3333;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+}
+
+#boton-reset:hover {
+    background: #4a0000;
+    box-shadow: 0 0 12px #ff000088;
+}
+
+#boton-reset:active {
+    background: #770000;
+}
+
+/* ESCENARIO CENTRAL */
+
+.juego {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* CORAZÓN PRINCIPAL */
+
+#boton-click {
+    width: 240px;
+    height: 240px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+    border: 6px solid #00ff00;
+    box-shadow: 0 0 6px #00ff0044;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, transform 0.1s ease;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+}
+
+#boton-click:active {
+    box-shadow:
+        0 0 12px #00ff00,
+        0 0 30px #00ff00,
+        0 0 50px #008800;
+    transform: scale(0.97);
+}
+
+.alma {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    background: #ff0000;
+    transform: rotate(45deg);
+    image-rendering: pixelated;
+    filter:
+        drop-shadow(0 0 5px #ff0000)
+        drop-shadow(0 0 12px #ff0000)
+        drop-shadow(0 0 22px #ff0000);
+    pointer-events: none;
+}
+
+.alma::before,
+.alma::after {
+    content: "";
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background: #ff0000;
+}
+
+.alma::before {
+    top: -16px;
+    left: 0;
+}
+
+.alma::after {
+    left: -16px;
+    top: 0;
+}
+
+@keyframes latido {
+    0%, 100% {
+        transform: rotate(45deg) scale(1);
+    }
+
+    50% {
+        transform: rotate(45deg) scale(1.15);
+    }
+}
+
+.alma.latir {
+    animation: latido 0.25s ease-in-out 1;
+}
+
+@keyframes resplandor {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+}
+
+/* BARRA TP */
+
+#panel-tp {
+    position: fixed;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    width: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    z-index: 2;
+}
+
+#texto-tp {
+    color: #d6c6a5;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+#barra-tp {
+    width: 24px;
+    height: 240px;
+    border: 2px solid #d6c6a5;
+    background: #17130e;
+    padding: 2px;
+    display: flex;
+    align-items: flex-end;
+}
+
+#relleno-tp {
+    width: 100%;
+    height: 0%;
+    background: #ffff00;
+    box-shadow: 0 0 8px #ffff0066;
+    transition: height 0.1s linear;
+}
+
+/* MENÚS */
+
+#menu-mejoras,
+#menu-ayudantes {
+    position: fixed;
+    bottom: 20px;
+    z-index: 10;
+}
+
+#menu-mejoras {
+    left: 20px;
+}
+
+#menu-ayudantes {
+    left: 190px;
+}
+
+#boton-mejoras,
+#boton-ayudantes {
+    padding: 15px;
+    background: #111;
+    border: 2px solid #d6c6a5;
+    color: #ffff00;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+#boton-mejoras:hover,
+#boton-ayudantes:hover {
+    background: #302500;
+    box-shadow: 0 0 12px #ffff0044;
+}
+
+#lista-mejoras,
+#lista-ayudantes {
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    margin-bottom: 10px;
+    width: 350px;
+    max-width: calc(100vw - 30px);
+    max-height: 65vh;
+    overflow-y: auto;
+    padding: 10px;
+    background: #100909;
+    border: 2px solid #d6c6a5;
+    box-shadow: 0 0 20px #000;
+}
+
+#lista-mejoras[hidden],
+#lista-ayudantes[hidden] {
+    display: none !important;
+}
+
+.separador-menu {
+    color: #ff5555;
+    font-size: 9px;
+    line-height: 1.8;
+    padding: 15px 4px 8px;
+    border-bottom: 1px solid #513c2a;
+}
+
+.mejora,
+.ayudante {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 4px;
+    border-bottom: 1px solid #513c2a;
+}
+
+.mejora:last-child,
+.ayudante:last-child {
+    border-bottom: none;
+}
+
+.info-mejora {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+}
+
+.nombre-mejora {
+    color: #ffff00;
+    font-size: 10px;
+    line-height: 1.8;
+}
+
+.efecto-mejora,
+.precio-mejora,
+.estado-ayudante {
+    color: #d6c6a5;
+    font-size: 8px;
+    line-height: 1.8;
+}
+
+.comprar-mejora,
+.comprar-durabilidad,
+.comprar-ayudante,
+.despertar-ayudante {
+    flex-shrink: 0;
+    padding: 9px 7px;
+    background: #151515;
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    line-height: 1.7;
+    cursor: pointer;
+}
+
+.comprar-mejora:hover:not(:disabled),
+.comprar-durabilidad:hover:not(:disabled),
+.comprar-ayudante:hover:not(:disabled),
+.despertar-ayudante:hover:not(:disabled) {
+    background: #003300;
+    box-shadow: 0 0 8px #00ff0055;
+}
+
+.comprar-mejora:disabled,
+.comprar-durabilidad:disabled,
+.comprar-ayudante:disabled,
+.despertar-ayudante:disabled {
+    border-color: #666;
+    color: #777;
+    cursor: not-allowed;
+}
+
+.estado-ayudante {
+    color: #00ff99;
+}
+
+/* ZONA DE LAS MINI ALMAS */
+
+#zona-ayudantes {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* MINI ALMAS */
+
+.mini-alma {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    cursor: pointer;
+    pointer-events: auto;
+    appearance: none;
+    -webkit-appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation:
+        flotar-alma 1.1s ease-in-out infinite,
+        latido-mini 0.7s ease-in-out infinite;
+}
+
+.mini-alma-forma {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 10px;
+    top: 10px;
+    background: #ff0000;
+    transform: rotate(45deg);
+    image-rendering: pixelated;
+    filter:
+        drop-shadow(0 0 2.5px #ff0000)
+        drop-shadow(0 0 6px #ff0000)
+        drop-shadow(0 0 11px #ff0000);
+    pointer-events: none;
+}
+
+.mini-alma-forma::before,
+.mini-alma-forma::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #ff0000;
+}
+
+.mini-alma-forma::before {
+    top: -8px;
+    left: 0;
+}
+
+.mini-alma-forma::after {
+    left: -8px;
+    top: 0;
+}
+
+/* POSICIONES: OCHO ALMAS ALREDEDOR DEL CORAZÓN */
+
+#mini-alma-1 {
+    left: calc(50% - 175px);
+    top: calc(50% - 100px);
+}
+
+#mini-alma-2 {
+    left: calc(50% - 18px);
+    top: calc(50% - 175px);
+    animation-delay: 0.15s;
+}
+
+#mini-alma-3 {
+    left: calc(50% + 140px);
+    top: calc(50% - 100px);
+    animation-delay: 0.3s;
+}
+
+#mini-alma-4 {
+    left: calc(50% + 150px);
+    top: calc(50% + 75px);
+    animation-delay: 0.45s;
+}
+
+#mini-alma-5 {
+    left: calc(50% + 65px);
+    top: calc(50% + 140px);
+    animation-delay: 0.6s;
+}
+
+#mini-alma-6 {
+    left: calc(50% - 100px);
+    top: calc(50% + 145px);
+    animation-delay: 0.75s;
+}
+
+#mini-alma-7 {
+    left: calc(50% - 175px);
+    top: calc(50% + 60px);
+    animation-delay: 0.9s;
+}
+
+#mini-alma-8 {
+    left: calc(50% - 125px);
+    top: calc(50% - 155px);
+    animation-delay: 1.05s;
+}
+
+/* MOVIMIENTO Y LATIDO */
+
+@keyframes flotar-alma {
+    0%, 100% { translate: 0 0; }
+    50% { translate: 0 -8px; }
+}
+
+@keyframes latido-mini {
+    0%, 100% { scale: 1; }
+    50% { scale: 1.12; }
+}
+
+/* ALMAS DORMIDAS */
+
+.mini-alma.dormida {
+    animation: none !important;
+    translate: 0 0 !important;
+    scale: 1 !important;
+    opacity: 0.8;
+    cursor: pointer;
+}
+
+.mini-alma.dormida .mini-alma-forma,
+.mini-alma.dormida .mini-alma-forma::before,
+.mini-alma.dormida .mini-alma-forma::after {
+    background: #777;
+}
+
+.mini-alma.dormida .mini-alma-forma {
+    filter: grayscale(1);
+}
+
+.mini-alma .zzz-sueno {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: -12px;
+    color: #d6c6a5;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    line-height: 1;
+    white-space: nowrap;
+    text-shadow: 0 0 5px #d6c6a5aa;
+    pointer-events: none;
+}
+
+.mini-alma.dormida .zzz-sueno {
+    display: block;
+    animation: zzz-sueno 1.5s ease-in-out infinite;
+}
+
+@keyframes zzz-sueno {
+    0% {
+        opacity: 0;
+        transform: translate(-20%, 5px) scale(0.8);
+    }
+
+    25% { opacity: 1; }
+    70% { opacity: 0.8; }
+
+    100% {
+        opacity: 0;
+        transform: translate(20%, -12px) scale(1.1);
+    }
+}
+
+/* PROYECTILES */
+
+.mini-alma-proyectil {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    background: #ff2222;
+    box-shadow: 0 0 6px #ff0000, 0 0 12px #ff0000;
+    pointer-events: none;
+    z-index: 4;
+    animation: destello-proyectil 0.2s steps(2, end) infinite;
+}
+
+@keyframes destello-proyectil {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+button:focus-visible {
+    outline: 2px dashed #ffff00;
+    outline-offset: 4px;
+}
+
+/* PANTALLAS PEQUEÑAS */
+
+@media (max-width: 650px) {
+    #boton-click {
+        width: 190px;
+        height: 190px;
+    }
+
+    #lista-mejoras,
+    #lista-ayudantes {
+        width: min(340px, calc(100vw - 30px));
+    }
+
+    #texto-tp {
+        font-size: 8px;
+    }
+
+    #panel-tp {
+        right: 5px;
+    }
+
+    #contador {
+        font-size: 11px;
+    }
+
+    #nivel,
+    #contador-tp {
+        font-size: 10px;
+    }
+
+    #menu-mejoras {
+        left: 10px;
+        bottom: 10px;
+    }
+
+    #menu-ayudantes {
+        left: auto;
+        right: 10px;
+        bottom: 10px;
+    }
+
+    #boton-mejoras,
+    #boton-ayudantes {
+        padding: 11px 9px;
+        font-size: 8px;
+    }
+
+    #boton-reset {
+        top: 15px;
+        right: 12px;
+        padding: 10px;
+        font-size: 8px;
+    }
+
+    .mini-alma {
+        width: 30px;
+        height: 30px;
+    }
+
+    .mini-alma-forma {
+        left: 7px;
+        top: 7px;
+    }
+
+    .mini-alma .zzz-sueno {
+        font-size: 7px;
+    }
+
+    #mini-alma-1 {
+        left: calc(50% - 140px);
+        top: calc(50% - 95px);
+    }
+
+    #mini-alma-2 {
+        left: calc(50% - 15px);
+        top: calc(50% - 140px);
+    }
+
+    #mini-alma-3 {
+        left: calc(50% + 105px);
+        top: calc(50% - 95px);
+    }
+
+    #mini-alma-4 {
+        left: calc(50% + 110px);
+        top: calc(50% + 65px);
+    }
+
+    #mini-alma-5 {
+        left: calc(50% + 45px);
+        top: calc(50% + 115px);
+    }
+
+    #mini-alma-6 {
+        left: calc(50% - 75px);
+        top: calc(50% + 120px);
+    }
+
+    #mini-alma-7 {
+        left: calc(50% - 140px);
+        top: calc(50% + 50px);
+    }
+
+    #mini-alma-8 {
+        left: calc(50% - 100px);
+        top: calc(50% - 130px);
+    }
+}
