@@ -828,7 +828,7 @@ function comprarAyudanteEspecial() {
     ayudanteEspecial.ultimoDisparo[id] = Date.now();
 
     crearSpriteEspecial(id);
-    colocarTodosLosEspeciales();
+    colocarTodosLosAyudantes();
     actualizarInterfaz();
     guardarProgreso();
 }
@@ -958,6 +958,13 @@ function renacer() {
 }
 
 // Ayudantes
+// Distribución:
+//        [S1] [S2]           ← 2 especiales arriba (línea horizontal)
+//   [N1]              [N4]
+//   [N2]    [CAJA]    [N5]   ← 3 normales a cada lado (columnas verticales)
+//   [N3]              [N6]
+//              [N7]          ← el 7º pegado al borde inferior de la pantalla
+
 function crearSpriteAyudante(id) {
     if (!zonaAyudantes || !ayudantes[id]) return null;
 
@@ -976,6 +983,13 @@ function crearSpriteAyudante(id) {
     sueno.setAttribute("aria-hidden", "true");
 
     s.append(forma, sueno);
+
+    s.style.position = "absolute";
+    s.style.margin = "0";
+    s.style.top = "auto";
+    s.style.bottom = "auto";
+    s.style.left = "auto";
+    s.style.right = "auto";
 
     s.addEventListener("click", event => {
         event.stopPropagation();
@@ -1001,6 +1015,7 @@ function crearSpriteAyudante(id) {
     });
 
     zonaAyudantes.appendChild(s);
+    colocarSpriteAyudante(id);
     return s;
 }
 
@@ -1027,6 +1042,10 @@ function crearSpriteEspecial(id) {
 
     s.style.position = "absolute";
     s.style.margin = "0";
+    s.style.top = "auto";
+    s.style.bottom = "auto";
+    s.style.left = "auto";
+    s.style.right = "auto";
 
     zonaAyudantes.appendChild(s);
     colocarSpriteEspecial(id);
@@ -1034,41 +1053,101 @@ function crearSpriteEspecial(id) {
     return s;
 }
 
-function colocarSpriteEspecial(id) {
-    const s = document.getElementById(`mini-alma-especial-${id}`);
-
-    if (!s || !zonaAyudantes || !alma || !boton) return;
+function colocarSpriteAyudante(id) {
+    const s = document.getElementById(`mini-alma-${id}`);
+    if (!s || !zonaAyudantes || !boton) return;
 
     const zr = zonaAyudantes.getBoundingClientRect();
     const ar = boton.getBoundingClientRect();
 
-    const cx = ar.left + ar.width / 2 - zr.left;
-    const cy = ar.top + ar.height / 2 - zr.top;
+    const sw = s.offsetWidth || 36;
+    const sh = s.offsetHeight || 36;
+    const gap = 12;
+    const margen = 32;
+
+    const boxLeft = ar.left - zr.left;
+    const boxRight = ar.right - zr.left;
+    const boxMidY = ar.top - zr.top + ar.height / 2;
+
+    // Columnas verticales a cada lado de la caja:
+    //   [1]              [4]
+    //   [2]    [CAJA]    [5]
+    //   [3]              [6]
+    //          [7]  ← pegado al borde inferior de la pantalla
+    if (id >= 1 && id <= 3) {
+        const slot = id - 1; // 0,1,2 de arriba a abajo
+        const x = boxLeft - margen - sw;
+        const columnaAlto = 3 * sh + 2 * gap;
+        const y0 = boxMidY - columnaAlto / 2;
+        const y = y0 + slot * (sh + gap);
+        s.style.left = `${Math.max(4, x)}px`;
+        s.style.top = `${Math.max(4, Math.min(y, zr.height - sh - 4))}px`;
+    } else if (id >= 4 && id <= 6) {
+        const slot = id - 4; // 0,1,2 de arriba a abajo
+        const x = boxRight + margen;
+        const columnaAlto = 3 * sh + 2 * gap;
+        const y0 = boxMidY - columnaAlto / 2;
+        const y = y0 + slot * (sh + gap);
+        s.style.left = `${Math.min(x, zr.width - sw - 4)}px`;
+        s.style.top = `${Math.max(4, Math.min(y, zr.height - sh - 4))}px`;
+    } else if (id === 7) {
+        // Centro horizontal, pegado al borde inferior de la PANTALLA
+        // (coordenadas viewport → relativas a zonaAyudantes)
+        const x = zr.width / 2 - sw / 2;
+        const yPantalla = window.innerHeight - sh - 12;
+        const y = yPantalla - zr.top;
+        s.style.left = `${Math.max(4, Math.min(x, zr.width - sw - 4))}px`;
+        s.style.top = `${Math.max(4, Math.min(y, zr.height - sh - 4))}px`;
+    }
+}
+
+function colocarSpriteEspecial(id) {
+    const s = document.getElementById(`mini-alma-especial-${id}`);
+    if (!s || !zonaAyudantes || !boton) return;
+
+    const zr = zonaAyudantes.getBoundingClientRect();
+    const ar = boton.getBoundingClientRect();
 
     const sw = s.offsetWidth || 42;
     const sh = s.offsetHeight || 42;
-    const n = obtenerCantidadEspecial();
+    const gap = 14;
+    const margen = 24;
 
-    const ang = -Math.PI / 2 +
-        (2 * Math.PI * (id - 1)) / Math.max(1, n);
+    const boxMidX = ar.left + ar.width / 2 - zr.left;
+    const boxTop = ar.top - zr.top;
 
-    const dist = Math.max(ar.width / 2 + 40, 75);
+    // Especiales encima de la caja, en línea horizontal centrada
+    const total = Math.max(1, obtenerCantidadEspecial());
+    const filaY = boxTop - margen - sh;
 
-    s.style.left = `${Math.max(
-        0,
-        Math.min(cx + Math.cos(ang) * dist - sw / 2, zr.width - sw)
-    )}px`;
+    if (total === 1) {
+        s.style.left = `${boxMidX - sw / 2}px`;
+    } else {
+        const filaAncho = total * sw + (total - 1) * gap;
+        const inicioX = boxMidX - filaAncho / 2;
+        s.style.left = `${inicioX + (id - 1) * (sw + gap)}px`;
+    }
 
-    s.style.top = `${Math.max(
-        0,
-        Math.min(cy + Math.sin(ang) * dist - sh / 2, zr.height - sh)
-    )}px`;
+    s.style.top = `${Math.max(4, filaY)}px`;
+}
+
+function colocarTodosLosSpritesAyudantes() {
+    for (let id = 1; id <= 7; id++) {
+        if (ayudantes[id]?.comprada) {
+            colocarSpriteAyudante(id);
+        }
+    }
 }
 
 function colocarTodosLosEspeciales() {
     for (let id = 1; id <= obtenerCantidadEspecial(); id++) {
         colocarSpriteEspecial(id);
     }
+}
+
+function colocarTodosLosAyudantes() {
+    colocarTodosLosSpritesAyudantes();
+    colocarTodosLosEspeciales();
 }
 
 function actualizarVisibilidadAyudantes() {
@@ -1193,15 +1272,15 @@ function crearEnemigo() {
         derrotado: false
     };
 
-    // Evitar el cuadrado de foco del navegador
+    // Evitar el cuadrado de foco; el disparo lo gestiona el listener global
     el.addEventListener("mousedown", event => {
         event.preventDefault();
     });
 
-    // Con Alma Dorada, el clic dispara (el daño solo llega por proyectiles)
     el.addEventListener("click", event => {
-        event.stopPropagation();
+        // No stopPropagation: el disparo global debe poder actuar
         if (almaActiva === "dorada" && !jugadorMuerto) {
+            event.stopPropagation();
             crearProyectilJugador();
         }
     });
@@ -1841,7 +1920,7 @@ function obtenerPosicionAlmaViewport() {
     return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 }
 
-function crearProyectilJugador() {
+function crearProyectilJugador(dirX, dirY) {
     if (
         almaActiva !== "dorada" ||
         !almaDoradaDesbloqueada ||
@@ -1854,11 +1933,11 @@ function crearProyectilJugador() {
     const x0 = origen.x;
     const y0 = origen.y;
 
-    let x1 = posicionRaton.x;
-    let y1 = posicionRaton.y;
+    // Dirección: argumento explícito, última posición del ratón, o arriba
+    let x1 = dirX !== undefined && dirX !== null ? dirX : posicionRaton.x;
+    let y1 = dirY !== undefined && dirY !== null ? dirY : posicionRaton.y;
 
-    // Si no hay posición de ratón, disparar hacia arriba
-    if (x1 === null || y1 === null) {
+    if (x1 === null || y1 === null || x1 === undefined || y1 === undefined) {
         x1 = x0;
         y1 = y0 - 400;
     }
@@ -2280,52 +2359,32 @@ function lanzarProyectilDesde(sprite, especial = false) {
     const x0 = origen.left + origen.width / 2;
     const y0 = origen.top + origen.height / 2;
 
-    const enemigo = almaDoradaDesbloqueada
-        ? enemigoMasCercano(x0, y0)
-        : null;
+    // Los ayudantes NUNCA disparan a enemigos: solo a la caja verde
+    const destino = boton.getBoundingClientRect();
 
-    let x1;
-    let y1;
+    const cx = destino.left + destino.width / 2;
+    const cy = destino.top + destino.height / 2;
 
-    if (enemigo) {
-        // Si hay un enemigo, apuntar a su centro.
-        const destino = enemigo.elemento.getBoundingClientRect();
+    const dx = cx - x0;
+    const dy = cy - y0;
 
-        x1 = destino.left + destino.width / 2;
-        y1 = destino.top + destino.height / 2;
-    } else {
-        // Si no hay enemigos, apuntar al borde de la caja verde
-        // (un poco más allá del borde exterior para asegurar cruce).
-        const destino = boton.getBoundingClientRect();
+    const tx = Math.abs(dx) > 0.001
+        ? (destino.width / 2) / Math.abs(dx)
+        : Infinity;
 
-        const cx = destino.left + destino.width / 2;
-        const cy = destino.top + destino.height / 2;
+    const ty = Math.abs(dy) > 0.001
+        ? (destino.height / 2) / Math.abs(dy)
+        : Infinity;
 
-        const dx = cx - x0;
-        const dy = cy - y0;
+    // Extra 8px para que el proyectil entre en la hitbox del borde
+    const t = Math.min(tx, ty) + 8 / Math.hypot(dx || 1, dy || 1);
 
-        const tx = Math.abs(dx) > 0.001
-            ? (destino.width / 2) / Math.abs(dx)
-            : Infinity;
-
-        const ty = Math.abs(dy) > 0.001
-            ? (destino.height / 2) / Math.abs(dy)
-            : Infinity;
-
-        // Extra 8px para que el proyectil entre en la hitbox del borde
-        const t = Math.min(tx, ty) + 8 / Math.hypot(dx || 1, dy || 1);
-
-        x1 = x0 + dx * t;
-        y1 = y0 + dy * t;
-    }
+    const x1 = x0 + dx * t;
+    const y1 = y0 + dy * t;
 
     const p = crearElemento(
         "span",
-        especial
-            ? "proyectil-especial"
-            : enemigo
-                ? "proyectil-enemigo"
-                : "mini-alma-proyectil"
+        especial ? "proyectil-especial" : "mini-alma-proyectil"
     );
 
     p.setAttribute("aria-hidden", "true");
@@ -2339,9 +2398,7 @@ function lanzarProyectilDesde(sprite, especial = false) {
         y0,
         x1,
         y1,
-        objetivo: enemigo
-            ? { tipo: "enemigo", id: enemigo.id }
-            : null,
+        objetivo: null,
         helper: true,
         especial,
         impactoRegistrado: false,
@@ -2353,6 +2410,8 @@ function actualizarProyectilesAyudantes() {
     const now = Date.now();
 
     proyectilesJugador = proyectilesJugador.filter(p => {
+        // Solo proyectiles de ayudantes; el resto lo gestiona
+        // actualizarProyectilesJugador (Alma Dorada → enemigos).
         if (!p.helper) return true;
 
         const q = Math.min(1, (now - p.inicio) / p.duracion);
@@ -2366,10 +2425,8 @@ function actualizarProyectilesAyudantes() {
         p.elemento.style.top = `${y - (zona?.top || 0)}px`;
         p.elemento.style.transform = "translate(-50%, -50%)";
 
-        // Solo los proyectiles de ayudantes sin objetivo enemigo
-        // colisionan con el borde de la caja verde.
+        // Único efecto: impacto en la caja verde → clic
         if (
-            !p.objetivo &&
             !p.impactoRegistrado &&
             proyectilTocaCajaVerde(x, y, p.radio || 5)
         ) {
@@ -2382,31 +2439,8 @@ function actualizarProyectilesAyudantes() {
 
         p.elemento.remove();
 
-        if (p.objetivo) {
-            const e = enemigos.find(
-                e => e.id === p.objetivo.id
-            );
-
-            if (e && almaDoradaDesbloqueada) {
-                if (almaActiva === "roja") {
-                    e.vidaActual = Math.max(0, e.vidaActual - 1);
-
-                    actualizarVidaEnemigo(e);
-
-                    if (e.vidaActual <= 0) {
-                        derrotarEnemigo(e);
-                    }
-
-                    darTP(
-                        p.especial
-                            ? obtenerTPEspecial()
-                            : obtenerTPPorDisparoNormal()
-                    );
-                }
-            }
-        } else if (!p.impactoRegistrado && almaActiva === "roja") {
-            // Fallback si el proyectil llegó al final sin haber
-            // detectado colisión (por redondeo de coordenadas).
+        // Fallback: si llegó al final sin detectar colisión, cuenta clic
+        if (!p.impactoRegistrado && almaActiva === "roja") {
             registrarImpactoCajaVerde(p);
         }
 
@@ -2631,7 +2665,7 @@ function actualizarAyudantes() {
         crearSpriteEspecial(id);
     }
 
-    colocarTodosLosEspeciales();
+    colocarTodosLosAyudantes();
     actualizarVisibilidadAyudantes();
 }
 
@@ -3013,7 +3047,7 @@ if (boton) {
 }
 
 actualizarVisibilidadAyudantes();
-colocarTodosLosEspeciales();
+colocarTodosLosAyudantes();
 colocarBotonesJuntos();
 mantenerJugadorEnZona();
 actualizarInterfaz();
@@ -3044,7 +3078,7 @@ setInterval(guardarProgreso, 5000);
 
 window.addEventListener("resize", () => {
     mantenerJugadorEnZona();
-    colocarTodosLosEspeciales();
+    colocarTodosLosAyudantes();
     colocarBotonesJuntos();
     colocarVidaDebajoCaja();
 });
