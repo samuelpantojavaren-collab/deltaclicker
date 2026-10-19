@@ -182,7 +182,8 @@ if (boton && alma) {
         position: "absolute",
         zIndex: "10",
         margin: "0",
-        pointerEvents: "auto"
+        // none: los clics atraviesan al botón / escenario
+        pointerEvents: "none"
     });
 }
 const botonReset = document.getElementById("boton-reset");
@@ -2906,13 +2907,12 @@ window.addEventListener("keydown", event => {
         ? event.key.toLowerCase()
         : event.key;
 
-    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(k)) {
+    // Espacio: siempre prevenir scroll; en modo dorado dispara
+    if (k === " " || event.code === "Space") {
         event.preventDefault();
-    }
 
-    // Alma Dorada: apuntar con el ratón, disparar con Espacio
-    if ((k === " " || k === "spacebar") && !event.repeat) {
         if (
+            !event.repeat &&
             almaActiva === "dorada" &&
             almaDoradaDesbloqueada &&
             !jugadorMuerto
@@ -2920,6 +2920,10 @@ window.addEventListener("keydown", event => {
             crearProyectilJugador();
         }
         return;
+    }
+
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(k)) {
+        event.preventDefault();
     }
 
     if (k === "q" && !event.repeat) {
@@ -2941,7 +2945,7 @@ window.addEventListener("keydown", event => {
     ) {
         teclasPulsadas.add(k);
     }
-});
+}, true); // capture: funciona aunque un botón tenga el foco
 
 window.addEventListener("keyup", event => {
     const k = event.key.length === 1
