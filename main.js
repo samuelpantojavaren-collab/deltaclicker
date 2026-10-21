@@ -1,7 +1,7 @@
 "use strict";
 
 // ============================================
-// DELTACLICKER 0.3.0
+// DELTACLICKER 1.0.0 — CONTENT DROP 1
 // ============================================
 
 const CLAVE_GUARDADO = "deltaclicker";
@@ -14,7 +14,8 @@ const INTERVALO_APARICION_MIN = 7000;
 const INTERVALO_APARICION_MAX = 12000;
 const DANIO_CLIC = 1;
 const COSTE_ESPECIAL = 15;
-const COSTE_ALMA_DORADA = 50000;
+const COSTE_ALMA_DORADA = 10000;
+const COSTE_DESTELLO = 10000000;
 const VIDA_INICIAL = 100;
 const VIDA_MAXIMA = 150;
 const VIDA_POR_MEJORA = 10;
@@ -40,6 +41,8 @@ let vidaJugador = VIDA_INICIAL;
 let jugadorMuerto = false;
 
 let bossCount = 0;
+let jefesDerrotadosRun = 0;
+let juegoFinalizado = false;
 let tpDesdeJefe = 0;
 let ultimoDisparoEnemigo = 0;
 
@@ -121,6 +124,27 @@ const ayudanteEspecial = {
     nivelTP: 0,
     ultimoDisparo: []
 };
+
+// Dificultad de combate: solo sube al derrotar jefes y se reinicia
+// al morir o renacer. El crecimiento es progresivo y no depende del tiempo.
+function multiplicadorDificultad() {
+    return 1 + jefesDerrotadosRun * 0.18 +
+        jefesDerrotadosRun * jefesDerrotadosRun * 0.006;
+}
+
+function vidaEscalada(vidaBase) {
+    return Math.max(1, Math.ceil(vidaBase * multiplicadorDificultad()));
+}
+
+function intervaloDisparoEnemigoActual() {
+    return Math.max(350, INTERVALO_DISPARO_ENEMIGO /
+        (1 + jefesDerrotadosRun * 0.09));
+}
+
+function intervaloDisparoJefeActual() {
+    return Math.max(250, INTERVALO_DISPARO_JEFE /
+        (1 + jefesDerrotadosRun * 0.10));
+}
 
 const TIPOS_ENEMIGOS = {
     errante: {
@@ -521,7 +545,7 @@ function crearPanelesNuevos() {
         const dorada = crearElemento(
             "button",
             "",
-            "Desbloquear Alma Dorada · 1.000.000 Esencias"
+            "Desbloquear Alma Dorada · 10.000 Esencias"
         );
 
         dorada.id = "comprar-alma-dorada";
@@ -540,6 +564,16 @@ function crearPanelesNuevos() {
         defensa.type = "button";
         defensa.addEventListener("click", comprarMejoraDefensa);
         combate.appendChild(defensa);
+
+        const destello = crearElemento(
+            "button",
+            "mejora-final",
+            `EL DESTELLO · ${formatear(COSTE_DESTELLO)} clicks`
+        );
+        destello.id = "comprar-el-destello";
+        destello.type = "button";
+        destello.addEventListener("click", comprarElDestello);
+        combate.appendChild(destello);
     }
 
     const renacerBtn = document.getElementById("boton-renacer");
@@ -581,6 +615,7 @@ function cargarProgreso() {
         tpGanadoRun = numeroSeguro(d.tpGanadoRun);
         esencia = numeroSeguro(d.esencia);
         renacimientos = numeroSeguro(d.renacimientos);
+        juegoFinalizado = d.juegoFinalizado === true;
 
         almaDoradaDesbloqueada = d.almaDoradaDesbloqueada === true;
 
@@ -668,6 +703,7 @@ function guardarProgreso() {
             esencia,
             tpGanadoRun,
             renacimientos,
+            juegoFinalizado,
             almaDoradaDesbloqueada,
             nivelVida,
             nivelDefensa,
@@ -731,7 +767,7 @@ function procesarBarraTP() {
 }
 
 function darRecompensa(cantidadBase = 1) {
-    if (jugadorMuerto) return;
+    if (jugadorMuerto || juegoFinalizado) return;
 
     const cantidad = cantidadBase * obtenerMultiplicador();
 
@@ -744,7 +780,7 @@ function darRecompensa(cantidadBase = 1) {
 }
 
 function darTP(cantidad) {
-    if (!Number.isFinite(cantidad) || cantidad <= 0 || jugadorMuerto) {
+    if (!Number.isFinite(cantidad) || cantidad <= 0 || jugadorMuerto || juegoFinalizado) {
         return;
     }
 
@@ -873,7 +909,7 @@ function comprarAlmaDorada() {
     if (almaDoradaDesbloqueada) return;
 
     if (esencia < COSTE_ALMA_DORADA) {
-        return mostrarAvisoRobo("Necesitas 1.000.000 de Esencias.");
+        return mostrarAvisoRobo("Necesitas 10.000 de Esencias.");
     }
 
     esencia -= COSTE_ALMA_DORADA;
@@ -883,6 +919,104 @@ function comprarAlmaDorada() {
 
     actualizarInterfaz();
     guardarProgreso();
+}
+
+function comprarElDestello() {
+    if (juegoFinalizado) return;
+
+    if (clicks < COSTE_DESTELLO) {
+        return mostrarAvisoRobo(
+            `Necesitas ${formatear(COSTE_DESTELLO)} clicks para comprar El Destello.`
+        );
+    }
+
+    if (!confirm(
+        `¿Comprar EL DESTELLO por ${formatear(COSTE_DESTELLO)} clicks?\n\n` +
+        "Esta mejora termina el juego. Esta acción no se puede deshacer."
+    )) return;
+
+    clicks -= COSTE_DESTELLO;
+    juegoFinalizado = true;
+    guardarProgreso();
+    actualizarInterfaz();
+    mostrarFinalElDestello(true);
+}
+
+function mostrarFinalElDestello(animar = true) {
+    juegoFinalizado = true;
+    if (document.getElementById("final-destello-overlay")) return;
+
+    let estilos = document.getElementById("estilos-final-destello");
+    if (!estilos) {
+        estilos = document.createElement("style");
+        estilos.id = "estilos-final-destello";
+        estilos.textContent = `
+            @keyframes destello-haz-expandir {
+                0% { opacity: 0; transform: translate(-50%, -50%) scale(0.015); }
+                12% { opacity: 1; }
+                100% { opacity: 1; transform: translate(-50%, -50%) scale(2.2); }
+            }
+            @keyframes destello-blanco {
+                0%, 45% { opacity: 0; }
+                65%, 100% { opacity: 1; }
+            }
+            @keyframes texto-final-aparecer {
+                0%, 68% { opacity: 0; transform: translateY(12px); }
+                100% { opacity: 1; transform: translateY(0); }
+            }
+            #final-destello-overlay {
+                position: fixed; inset: 0; z-index: 999999;
+                overflow: hidden; display: flex; align-items: center;
+                justify-content: center; background: transparent; color: #111;
+                pointer-events: all; isolation: isolate;
+            }
+            #final-destello-haz {
+                position: absolute; left: var(--destello-x, 50%);
+                top: var(--destello-y, 50%); width: 100vw; height: 100vh;
+                border-radius: 50%;
+                background: radial-gradient(ellipse at center, #fff 0%, #fff 20%, rgba(255,255,255,.98) 35%, rgba(255,255,255,.8) 52%, rgba(255,255,255,0) 72%);
+                filter: brightness(1.2); opacity: 1;
+                transform: translate(-50%, -50%) scale(2.2);
+            }
+            #final-destello-blanco { position: absolute; inset: 0; background: #fff; opacity: 1; }
+            #final-destello-texto {
+                position: relative; z-index: 2; max-width: 90vw; padding: 24px;
+                text-align: center; font: bold clamp(16px, 3vw, 30px)/1.6 'Press Start 2P', monospace;
+                color: #111; text-shadow: 0 2px 0 #fff;
+            }
+        `;
+        document.head.appendChild(estilos);
+    }
+
+    const overlay = document.createElement("div");
+    overlay.id = "final-destello-overlay";
+    const haz = document.createElement("div");
+    haz.id = "final-destello-haz";
+    const blanco = document.createElement("div");
+    blanco.id = "final-destello-blanco";
+    const texto = document.createElement("div");
+    texto.id = "final-destello-texto";
+    texto.textContent = "Haz sellado la fuente oscura";
+    overlay.append(haz, blanco, texto);
+    document.body.appendChild(overlay);
+
+    if (animar) {
+        const rect = alma?.getBoundingClientRect();
+        if (rect) {
+            overlay.style.setProperty("--destello-x", `${rect.left + rect.width / 2}px`);
+            overlay.style.setProperty("--destello-y", `${rect.top + rect.height / 2}px`);
+        }
+        haz.style.animation = "destello-haz-expandir 2.1s ease-out forwards";
+        blanco.style.opacity = "0";
+        blanco.style.animation = "destello-blanco 2.1s ease-out forwards";
+        texto.style.opacity = "0";
+        texto.style.animation = "texto-final-aparecer 2.1s ease-out forwards";
+    } else {
+        overlay.style.background = "#fff";
+        blanco.style.opacity = "1";
+        texto.style.opacity = "1";
+        haz.style.opacity = "0";
+    }
 }
 
 function comprarMejoraVida() {
@@ -914,6 +1048,7 @@ function comprarMejoraDefensa() {
 
 // Renacimiento voluntario
 function renacer() {
+    if (juegoFinalizado) return;
     if (tpGanadoRun < 100) {
         return mostrarAvisoRobo(
             "Necesitas acumular 100 TP antes de renacer."
@@ -938,6 +1073,10 @@ function renacer() {
     nivel = 1;
     tpGanadoRun = 0;
     tpDesdeJefe = 0;
+    limpiarCombate();
+    bossCount = 0;
+    jefesDerrotadosRun = 0;
+    ultimoDisparoEnemigo = 0;
 
     for (const m of Object.values(mejoras)) {
         m.comprada = false;
@@ -953,6 +1092,7 @@ function renacer() {
 
     actualizarInterfaz();
     guardarProgreso();
+    programarSiguienteEnemigo();
 
     mostrarAvisoRobo(`¡RENACIMIENTO! +${ganancia} Esencias`);
 }
@@ -1210,13 +1350,17 @@ function crearBarraVida(
     vida,
     clase = "vida-enemigo-segmento"
 ) {
-    for (let i = 0; i < vida; i++) {
+    // Limitar los segmentos visuales para que las vidas enormes no creen
+    // miles de nodos y ralenticen el juego en dificultades altas.
+    const segmentos = Math.min(100, Math.max(1, Math.ceil(vida)));
+    for (let i = 0; i < segmentos; i++) {
         contenedor.appendChild(crearElemento("span", clase));
     }
 }
 
 function crearEnemigo() {
     if (
+        juegoFinalizado ||
         !zonaEnemigos ||
         enemigos.length >= MAX_ENEMIGOS ||
         !almaDoradaDesbloqueada ||
@@ -1248,15 +1392,16 @@ function crearEnemigo() {
     const textoVida = crearElemento("span", "texto-vida-enemigo");
 
     el.append(forma, nombre, vida, textoVida);
-    crearBarraVida(vida, d.vida);
+    const vidaMaxima = vidaEscalada(d.vida);
+    crearBarraVida(vida, vidaMaxima);
 
     const ahora = Date.now();
 
     const e = {
         id,
         tipo,
-        vidaActual: d.vida,
-        vidaMaxima: d.vida,
+        vidaActual: vidaMaxima,
+        vidaMaxima,
         recompensa: d.recompensa,
         roboTP: d.roboTP,
         roboInicial: d.roboInicial,
@@ -1301,9 +1446,9 @@ function crearEnemigo() {
 function actualizarVidaEnemigo(e) {
     if (!e || e.derrotado) return;
 
-    e.vida.querySelectorAll(".vida-enemigo-segmento").forEach(
-        (s, i) => s.classList.toggle("activo", i < e.vidaActual)
-    );
+    const segmentos = e.vida.querySelectorAll(".vida-enemigo-segmento");
+    const activos = Math.ceil((e.vidaActual / e.vidaMaxima) * segmentos.length);
+    segmentos.forEach((s, i) => s.classList.toggle("activo", i < activos));
 
     e.textoVida.textContent = `${e.vidaActual}/${e.vidaMaxima}`;
 }
@@ -1321,6 +1466,27 @@ function atacarEnemigo(e, danio = 1) {
 
     if (e.vidaActual <= 0) {
         derrotarEnemigo(e);
+    }
+}
+
+function actualizarDificultadEnemigosExistentes() {
+    for (const e of enemigos) {
+        if (e.derrotado) continue;
+
+        const proporcionVida = e.vidaMaxima > 0
+            ? e.vidaActual / e.vidaMaxima
+            : 1;
+        const nuevaVidaMaxima = vidaEscalada(TIPOS_ENEMIGOS[e.tipo].vida);
+
+        e.vidaMaxima = nuevaVidaMaxima;
+        e.vidaActual = Math.max(
+            1,
+            Math.min(nuevaVidaMaxima, Math.ceil(nuevaVidaMaxima * proporcionVida))
+        );
+
+        e.vida.replaceChildren();
+        crearBarraVida(e.vida, e.vidaMaxima);
+        actualizarVidaEnemigo(e);
     }
 }
 
@@ -1425,7 +1591,7 @@ function actualizarRobosEnemigos() {
 }
 
 function actualizarEnemigos() {
-    if (!almaDoradaDesbloqueada || jugadorMuerto) return;
+    if (juegoFinalizado || !almaDoradaDesbloqueada || jugadorMuerto) return;
 
     const now = Date.now();
 
@@ -1460,7 +1626,7 @@ function crearJefe() {
 
     bossCount++;
 
-    const vidaMax = 40 + (bossCount - 1) * 15;
+    const vidaMax = vidaEscalada(40 + jefesDerrotadosRun * 15);
     const id = siguienteIdJefe++;
 
     const el = crearElemento(
@@ -1524,16 +1690,16 @@ function crearJefe() {
 function actualizarVidaJefe() {
     if (!jefe || jefe.derrotado) return;
 
-    jefe.vida.querySelectorAll(".vida-enemigo-segmento").forEach(
-        (s, i) => s.classList.toggle("activo", i < jefe.vidaActual)
-    );
+    const segmentos = jefe.vida.querySelectorAll(".vida-enemigo-segmento");
+    const activos = Math.ceil((jefe.vidaActual / jefe.vidaMaxima) * segmentos.length);
+    segmentos.forEach((s, i) => s.classList.toggle("activo", i < activos));
 
     jefe.textoVida.textContent =
         `${jefe.vidaActual}/${jefe.vidaMaxima}`;
 }
 
 function atacarJefe(danio = 1) {
-    if (!jefe || jefe.derrotado || almaActiva !== "dorada") return;
+    if (juegoFinalizado || !jefe || jefe.derrotado || almaActiva !== "dorada") return;
 
     jefe.vidaActual = Math.max(0, jefe.vidaActual - danio);
 
@@ -1548,12 +1714,18 @@ function atacarJefe(danio = 1) {
         jefe.elemento.classList.add("derrotada");
 
         const jefeDerrotado = jefe;
+        jefesDerrotadosRun++;
+        actualizarDificultadEnemigosExistentes();
 
         tpDesdeJefe = Math.max(0, tpDesdeJefe - 1000);
 
-        mostrarAvisoRobo("¡JEFE DERROTADO! +1.000 TP");
+        mostrarAvisoRobo(
+            `¡JEFE DERROTADO! +1.000 TP · DIFICULTAD ${jefesDerrotadosRun}`
+        );
 
         jefe = null;
+        actualizarInterfaz();
+        guardarProgreso();
 
         darTP(1000);
 
@@ -1564,7 +1736,7 @@ function atacarJefe(danio = 1) {
 }
 
 function actualizarJefe() {
-    if (!jefe || jefe.derrotado || !zonaEnemigos) return;
+    if (juegoFinalizado || !jefe || jefe.derrotado || !zonaEnemigos) return;
 
     const w = zonaEnemigos.clientWidth;
     const h = zonaEnemigos.clientHeight;
@@ -1578,7 +1750,7 @@ function actualizarJefe() {
     jefe.elemento.style.top =
         `${h * 0.22 + Math.sin(jefe.angulo * 0.7) * 35}px`;
 
-    if (t - jefe.ultimoDisparo >= INTERVALO_DISPARO_JEFE) {
+    if (t - jefe.ultimoDisparo >= intervaloDisparoJefeActual()) {
         jefe.ultimoDisparo = t;
         dispararContraJugador(true);
     }
@@ -1774,7 +1946,7 @@ function mantenerJugadorEnZona() {
 }
 
 function moverJugador() {
-    if (!alma || jugadorMuerto) return;
+    if (!alma || jugadorMuerto || juegoFinalizado) return;
 
     const limites = obtenerLimitesCajaVerde();
     if (!limites) return;
@@ -1922,6 +2094,7 @@ function obtenerPosicionAlmaViewport() {
 
 function crearProyectilJugador(dirX, dirY) {
     if (
+        juegoFinalizado ||
         almaActiva !== "dorada" ||
         !almaDoradaDesbloqueada ||
         jugadorMuerto
@@ -2047,78 +2220,324 @@ function actualizarProyectilesJugador() {
     });
 }
 
-// Disparos enemigos: línea recta hacia el corazón (no hacia el centro de la caja)
-function dispararContraJugador(esJefe = false) {
+// Disparos enemigos: patrones variados (dirigido, abanico, ráfaga, anillo, ola, combinados)
+// Reutiliza el sistema de proyectiles y colisiones existente.
+
+function obtenerOrigenDisparoEnemigo(esJefe) {
+    if (esJefe && jefe && jefe.elemento) {
+        const r = jefe.elemento.getBoundingClientRect();
+        return {
+            x: r.left + r.width / 2,
+            y: r.top + r.height / 2
+        };
+    }
+
+    // Preferir la posición de un enemigo vivo si hay
+    if (enemigos.length > 0) {
+        const vivos = enemigos.filter(e => !e.derrotado && e.elemento);
+        if (vivos.length > 0) {
+            const e = vivos[Math.floor(Math.random() * vivos.length)];
+            const r = e.elemento.getBoundingClientRect();
+            return {
+                x: r.left + r.width / 2,
+                y: r.top + r.height / 2
+            };
+        }
+    }
+
+    // Fallback: borde superior aleatorio
+    return {
+        x: Math.random() * window.innerWidth,
+        y: 0
+    };
+}
+
+function spawnProyectilEnemigo(x0, y0, x1, y1, esJefe, opts = {}) {
     if (jugadorMuerto) return;
 
-    const origen = esJefe && jefe
-        ? jefe.elemento.getBoundingClientRect()
-        : null;
-
-    // Origen: jefe o un punto aleatorio en el borde superior
-    const x0 = origen
-        ? origen.left + origen.width / 2
-        : Math.random() * window.innerWidth;
-
-    const y0 = origen
-        ? origen.top + origen.height / 2
-        : 0;
-
-    // Objetivo: posición actual del corazón del jugador
-    const corazon = obtenerPosicionAlmaViewport();
-    let x1 = corazon.x;
-    let y1 = corazon.y;
-
-    // Extender un poco más allá del corazón para que la línea lo atraviese
-    const dx = x1 - x0;
-    const dy = y1 - y0;
-    const dist = Math.hypot(dx, dy) || 1;
-    const extra = 40;
-    x1 = x0 + (dx / dist) * (dist + extra);
-    y1 = y0 + (dy / dist) * (dist + extra);
+    const linea = opts.linea !== false;
+    const danio = opts.danio != null
+        ? opts.danio
+        : (esJefe ? 15 : 8);
+    const duracion = opts.duracion != null
+        ? opts.duracion
+        : (esJefe ? 900 : 1300);
+    const radio = opts.radio != null ? opts.radio : 12;
 
     const el = crearElemento(
         "span",
         esJefe
-            ? "proyectil-enemigo proyectil-jefe proyectil-linea"
-            : "proyectil-enemigo proyectil-linea"
+            ? "proyectil-enemigo proyectil-jefe" + (linea ? " proyectil-linea" : "")
+            : "proyectil-enemigo" + (linea ? " proyectil-linea" : "")
     );
 
     el.setAttribute("aria-hidden", "true");
 
-    Object.assign(el.style, {
-        position: "fixed",
-        left: `${x0}px`,
-        top: `${y0}px`,
-        width: "0px",
-        height: esJefe ? "4px" : "3px",
-        transformOrigin: "0 50%",
-        background: esJefe
-            ? "linear-gradient(90deg, #ff8800, #ff4400, transparent)"
-            : "linear-gradient(90deg, #00ff99, #caffee, transparent)",
-        boxShadow: esJefe
-            ? "0 0 6px #ff8800, 0 0 12px #ff4400"
-            : "0 0 5px #00ff99, 0 0 10px #00ff99",
-        border: "none",
-        pointerEvents: "none",
-        zIndex: "15"
-    });
+    if (linea) {
+        Object.assign(el.style, {
+            position: "fixed",
+            left: `${x0}px`,
+            top: `${y0}px`,
+            width: "0px",
+            height: esJefe ? "4px" : "3px",
+            transformOrigin: "0 50%",
+            background: esJefe
+                ? "linear-gradient(90deg, #ff8800, #ff4400, transparent)"
+                : "linear-gradient(90deg, #00ff99, #caffee, transparent)",
+            boxShadow: esJefe
+                ? "0 0 6px #ff8800, 0 0 12px #ff4400"
+                : "0 0 5px #00ff99, 0 0 10px #00ff99",
+            border: "none",
+            pointerEvents: "none",
+            zIndex: "15"
+        });
+    } else {
+        // Proyectil puntual (anillo, olas, etc.)
+        const size = esJefe ? 14 : 10;
+        Object.assign(el.style, {
+            position: "fixed",
+            left: `${x0}px`,
+            top: `${y0}px`,
+            width: `${size}px`,
+            height: `${size}px`,
+            borderRadius: "50%",
+            background: esJefe
+                ? "radial-gradient(circle, #ffaa44, #ff4400)"
+                : "radial-gradient(circle, #aaffee, #00ff99)",
+            boxShadow: esJefe
+                ? "0 0 8px #ff8800, 0 0 14px #ff4400"
+                : "0 0 6px #00ff99, 0 0 12px #00ff99",
+            border: "none",
+            pointerEvents: "none",
+            zIndex: "15",
+            transform: "translate(-50%, -50%)"
+        });
+    }
 
     document.body.appendChild(el);
 
     proyectilesEnemigos.push({
         elemento: el,
         inicio: Date.now(),
-        duracion: esJefe ? 900 : 1300,
+        duracion,
         x0,
         y0,
         x1,
         y1,
-        danio: esJefe ? 15 : 8,
-        radio: 12,
-        linea: true,
+        danio,
+        radio,
+        linea,
         impactoRegistrado: false
     });
+}
+
+function extenderHacia(x0, y0, x1, y1, extra = 40) {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const dist = Math.hypot(dx, dy) || 1;
+    return {
+        x: x0 + (dx / dist) * (dist + extra),
+        y: y0 + (dy / dist) * (dist + extra)
+    };
+}
+
+function direccionHaciaAlma(x0, y0) {
+    const corazon = obtenerPosicionAlmaViewport();
+    return { x: corazon.x, y: corazon.y };
+}
+
+// --- PATRONES ---
+
+function patronDirigido(esJefe) {
+    const origen = obtenerOrigenDisparoEnemigo(esJefe);
+    const target = direccionHaciaAlma(origen.x, origen.y);
+    const end = extenderHacia(origen.x, origen.y, target.x, target.y, 50);
+    spawnProyectilEnemigo(origen.x, origen.y, end.x, end.y, esJefe, {
+        linea: true,
+        danio: esJefe ? 15 : 8,
+        duracion: esJefe ? 850 : 1200
+    });
+}
+
+function patronAbanico(esJefe, cantidad = null) {
+    const origen = obtenerOrigenDisparoEnemigo(esJefe);
+    const target = direccionHaciaAlma(origen.x, origen.y);
+    const baseAng = Math.atan2(target.y - origen.y, target.x - origen.x);
+    const n = cantidad != null
+        ? cantidad
+        : (esJefe ? 5 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 2));
+    const spread = esJefe ? 0.55 : 0.42; // radianes totales aprox
+    const alcance = esJefe ? 620 : 520;
+
+    for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0.5 : i / (n - 1);
+        const ang = baseAng + (t - 0.5) * spread;
+        const x1 = origen.x + Math.cos(ang) * alcance;
+        const y1 = origen.y + Math.sin(ang) * alcance;
+        spawnProyectilEnemigo(origen.x, origen.y, x1, y1, esJefe, {
+            linea: true,
+            danio: esJefe ? 12 : 7,
+            duracion: esJefe ? 900 : 1250
+        });
+    }
+}
+
+function patronRafaga(esJefe, cantidad = null) {
+    const n = cantidad != null
+        ? cantidad
+        : (esJefe ? 4 : 3);
+    const intervalo = esJefe ? 110 : 140;
+
+    for (let i = 0; i < n; i++) {
+        setTimeout(() => {
+            if (jugadorMuerto) return;
+            // Cada disparo de la ráfaga se reorienta a la posición actual del alma
+            patronDirigido(esJefe);
+        }, i * intervalo);
+    }
+}
+
+function patronAnillo(esJefe, cantidad = null) {
+    // Centro del anillo: jefe o un punto cerca del centro superior de la pantalla
+    let cx, cy;
+    if (esJefe && jefe && jefe.elemento) {
+        const r = jefe.elemento.getBoundingClientRect();
+        cx = r.left + r.width / 2;
+        cy = r.top + r.height / 2;
+    } else {
+        cx = window.innerWidth * (0.3 + Math.random() * 0.4);
+        cy = window.innerHeight * 0.18 + Math.random() * 40;
+    }
+
+    const n = cantidad != null
+        ? cantidad
+        : (esJefe ? 10 + Math.floor(Math.random() * 3) : 7 + Math.floor(Math.random() * 2));
+    const alcance = esJefe ? 480 : 400;
+    const duracion = esJefe ? 1100 : 1400;
+    const danio = esJefe ? 11 : 7;
+
+    for (let i = 0; i < n; i++) {
+        const ang = (i / n) * Math.PI * 2 + Math.random() * 0.08;
+        const x1 = cx + Math.cos(ang) * alcance;
+        const y1 = cy + Math.sin(ang) * alcance;
+        spawnProyectilEnemigo(cx, cy, x1, y1, esJefe, {
+            linea: false,
+            danio,
+            duracion,
+            radio: esJefe ? 14 : 11
+        });
+    }
+}
+
+function patronOla(esJefe) {
+    // Ola horizontal desde la parte superior con huecos para esquivar
+    const n = esJefe ? 7 : 5;
+    const huecos = esJefe ? 1 + Math.floor(Math.random() * 2) : 1;
+    const indicesHueco = new Set();
+    while (indicesHueco.size < huecos) {
+        indicesHueco.add(1 + Math.floor(Math.random() * (n - 2)));
+    }
+
+    const margen = 40;
+    const ancho = window.innerWidth - margen * 2;
+    const y0 = 8 + Math.random() * 25;
+    const targetY = window.innerHeight * 0.85;
+    const danio = esJefe ? 12 : 7;
+    const duracion = esJefe ? 1050 : 1350;
+
+    for (let i = 0; i < n; i++) {
+        if (indicesHueco.has(i)) continue;
+        const x0 = margen + (i / (n - 1)) * ancho;
+        // Ligera inclinación hacia el alma para que no sea 100% vertical
+        const alma = obtenerPosicionAlmaViewport();
+        const offsetX = (alma.x - x0) * 0.18;
+        const x1 = x0 + offsetX;
+        const y1 = targetY;
+        spawnProyectilEnemigo(x0, y0, x1, y1, esJefe, {
+            linea: false,
+            danio,
+            duracion: duracion + Math.floor(Math.random() * 80),
+            radio: esJefe ? 13 : 11
+        });
+    }
+}
+
+function patronCombinadoJefe() {
+    // Combinaciones más complejas solo para jefes; dificultad progresiva
+    const nivel = jefesDerrotadosRun;
+    const roll = Math.random();
+
+    if (nivel >= 4 && roll < 0.28) {
+        // Anillo + abanico
+        patronAnillo(true, 9 + Math.min(4, nivel));
+        setTimeout(() => {
+            if (!jugadorMuerto) patronAbanico(true, 5);
+        }, 280);
+    } else if (nivel >= 2 && roll < 0.50) {
+        // Ráfaga + ola
+        patronRafaga(true, 3);
+        setTimeout(() => {
+            if (!jugadorMuerto) patronOla(true);
+        }, 320);
+    } else if (roll < 0.72) {
+        // Doble abanico desde lados ligeramente distintos
+        patronAbanico(true, 4);
+        setTimeout(() => {
+            if (!jugadorMuerto) patronAbanico(true, 4);
+        }, 220);
+    } else {
+        // Anillo denso + dirigido
+        patronAnillo(true, 11);
+        setTimeout(() => {
+            if (!jugadorMuerto) patronDirigido(true);
+        }, 180);
+    }
+}
+
+function elegirYEjecutarPatron(esJefe) {
+    if (jugadorMuerto) return;
+
+    const nivel = jefesDerrotadosRun;
+    const r = Math.random();
+
+    if (esJefe) {
+        // Jefes: más peso a patrones complejos y combinados
+        if (nivel >= 1 && r < 0.32) {
+            patronCombinadoJefe();
+        } else if (r < 0.48) {
+            patronAbanico(true);
+        } else if (r < 0.62) {
+            patronRafaga(true);
+        } else if (r < 0.76) {
+            patronAnillo(true);
+        } else if (r < 0.88) {
+            patronOla(true);
+        } else {
+            patronDirigido(true);
+        }
+        return;
+    }
+
+    // Enemigos normales: variedad, evitando siempre el mismo patrón
+    // Con más jefes derrotados, aparecen patrones más difíciles con más frecuencia
+    if (r < 0.28) {
+        patronDirigido(false);
+    } else if (r < 0.48) {
+        patronAbanico(false);
+    } else if (r < 0.64) {
+        patronRafaga(false);
+    } else if (r < 0.78 + Math.min(0.08, nivel * 0.02)) {
+        patronOla(false);
+    } else if (r < 0.90 + Math.min(0.05, nivel * 0.015)) {
+        patronAnillo(false);
+    } else {
+        patronDirigido(false);
+    }
+}
+
+function dispararContraJugador(esJefe = false) {
+    if (jugadorMuerto) return;
+    elegirYEjecutarPatron(esJefe);
 }
 
 function actualizarProyectilesEnemigos() {
@@ -2229,6 +2648,8 @@ function morirJugador() {
 
     almaActiva = "roja";
     bossCount = 0;
+    jefesDerrotadosRun = 0;
+    ultimoDisparoEnemigo = 0;
 
     for (const m of Object.values(mejoras)) {
         m.comprada = false;
@@ -2795,6 +3216,14 @@ function actualizarPanelProgresion() {
             ? "Defensa · MÁXIMA (50%)"
             : `Defensa ${Math.round(obtenerDefensa() * 100)}% → ${Math.round((nivelDefensa + 1) * 10)}% · ${c} Esencias`;
     }
+
+    const bDestello = document.getElementById("comprar-el-destello");
+    if (bDestello) {
+        bDestello.disabled = juegoFinalizado || clicks < COSTE_DESTELLO;
+        bDestello.textContent = juegoFinalizado
+            ? "EL DESTELLO · JUEGO COMPLETADO"
+            : `EL DESTELLO · ${formatear(COSTE_DESTELLO)} clicks`;
+    }
 }
 
 function actualizarInterfaz() {
@@ -3052,6 +3481,7 @@ colocarBotonesJuntos();
 mantenerJugadorEnZona();
 actualizarInterfaz();
 programarSiguienteEnemigo();
+if (juegoFinalizado) mostrarFinalElDestello(false);
 
 setInterval(moverJugador, 16);
 setInterval(actualizarCicloAyudantes, 50);
@@ -3066,7 +3496,7 @@ setInterval(() => {
     if (
         almaDoradaDesbloqueada &&
         !jugadorMuerto &&
-        Date.now() - ultimoDisparoEnemigo >= INTERVALO_DISPARO_ENEMIGO &&
+        Date.now() - ultimoDisparoEnemigo >= intervaloDisparoEnemigoActual() &&
         enemigos.length > 0
     ) {
         ultimoDisparoEnemigo = Date.now();
