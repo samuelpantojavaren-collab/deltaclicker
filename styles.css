@@ -261,6 +261,49 @@ body::before {
         0 0 50px #ff8800;
 }
 
+/* ALMA VERDE: defensa y regeneración */
+.alma.alma-verde,
+.alma.alma-verde::before,
+.alma.alma-verde::after {
+    background: #35ff8a;
+}
+
+.alma.alma-verde {
+    filter: drop-shadow(0 0 5px #35ff8a) drop-shadow(0 0 13px #00ff66) drop-shadow(0 0 22px #00aa55);
+}
+
+#boton-click.modo-verde {
+    border-color: #35ff8a;
+    box-shadow: 0 0 10px #00ff6688, inset 0 0 20px #00ff6618;
+}
+
+.alma.parry-activo {
+    filter: drop-shadow(0 0 7px #ffffff) drop-shadow(0 0 16px #6beaff) drop-shadow(0 0 28px #ffffff);
+    animation: brillo-parry 0.35s ease-in-out infinite alternate;
+}
+
+body.parry-activo::after {
+    content: "PARRY ACTIVO · INMUNIDAD";
+    position: fixed;
+    top: 135px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    padding: 10px 12px;
+    color: #bff8ff;
+    background: #00151dcc;
+    border: 1px solid #6beaff;
+    box-shadow: 0 0 16px #36dfff88;
+    font-size: 9px;
+    text-align: center;
+    pointer-events: none;
+}
+
+@keyframes brillo-parry {
+    from { opacity: 0.7; }
+    to { opacity: 1; }
+}
+
 @keyframes latido {
     0%, 100% {
         transform: rotate(45deg) scale(1);
@@ -412,6 +455,10 @@ body::before {
     gap: 12px;
     padding: 12px 4px;
     border-bottom: 1px solid #513c2a;
+}
+
+.mejora[hidden] {
+    display: none !important;
 }
 
 .mejora:last-child,
@@ -959,136 +1006,194 @@ body::before {
 }
 
 /* ==========================================
-   PROYECTILES
+   PROYECTILES — Rombos neón estilo Deltarune
+   Todos los proyectiles: rombo 16×16, núcleo intenso,
+   borde luminoso y brillo exterior. Solo cambia el color.
    ========================================== */
 
 .mini-alma-proyectil,
 .proyectil-enemigo,
 .proyectil-especial,
 .proyectil-jugador,
-.proyectil-enemigo-jugador {
+.proyectil-enemigo-jugador,
+.proyectil-bala-deltarune {
     position: absolute;
     top: 0;
     left: 0;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
     pointer-events: none;
-    z-index: 9;
-    animation: destello-proyectil 0.2s steps(2, end) infinite;
+    z-index: 15;
+    border-radius: 0 !important;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important;
+    border: 2px solid var(--proy-borde, #ffffff) !important;
+    background: var(--proy-nucleo, #ffffff) !important;
+    box-shadow:
+        0 0 3px #ffffff,
+        0 0 7px var(--proy-glow, #ffffff),
+        0 0 15px var(--proy-glow, #ffffff),
+        0 0 25px color-mix(in srgb, var(--proy-glow, #ffffff) 72%, transparent) !important;
+    filter: none !important;
+    animation: none !important;
+    opacity: 1 !important;
+    image-rendering: pixelated;
+    transform-origin: center center;
 }
 
-.mini-alma-proyectil {
-    width: 10px;
+/* Estela alargada detrás del rombo — color del proyectil, se desvanece */
+.proyectil-estela {
+    position: absolute;
+    pointer-events: none;
+    z-index: 14;
+    width: 34px;
     height: 10px;
-    background: #ff2222;
-    box-shadow: 0 0 6px #ff0000, 0 0 12px #ff0000;
+    border-radius: 4px;
+    background: linear-gradient(
+        90deg,
+        var(--proy-glow, #ffffff) 0%,
+        color-mix(in srgb, var(--proy-glow, #ffffff) 40%, transparent) 55%,
+        transparent 100%
+    );
+    box-shadow:
+        0 0 7px var(--proy-glow, #ffffff),
+        0 0 15px color-mix(in srgb, var(--proy-glow, #ffffff) 65%, transparent);
+    opacity: 0.92;
+    transform-origin: 100% 50%;
+    clip-path: none !important;
+    border: none !important;
+    filter: none !important;
+    animation: none !important;
 }
 
+/* --- Colores por tipo (solo varían --proy-*) --- */
+
+/* Alma Dorada (jugador) */
+.proyectil-jugador,
+.proyectil-jugador.proyectil-bala-deltarune {
+    --proy-nucleo: #ffe566;
+    --proy-borde: #fff8c8;
+    --proy-glow: #ffd700;
+}
+
+/* Enemigos normales */
 .proyectil-enemigo {
-    width: 9px;
-    height: 9px;
-    background: #00ff99;
-    border: 1px solid #caffee;
-    box-shadow:
-        0 0 5px #00ff99,
-        0 0 12px #00ff99;
+    --proy-nucleo: #7affd0;
+    --proy-borde: #e0fff5;
+    --proy-glow: #00ff99;
 }
 
+/* Jefe */
+.proyectil-enemigo.proyectil-jefe {
+    --proy-nucleo: #ffb84d;
+    --proy-borde: #ffe0a0;
+    --proy-glow: #ff8800;
+}
+
+/* Abismal (rojo intenso) */
 .proyectil-enemigo.abismal {
-    background: #ff3030;
-    border-color: #ffaaaa;
-    box-shadow:
-        0 0 5px #ff3030,
-        0 0 12px #ff0000;
+    --proy-nucleo: #ff0000;
+    --proy-borde: #ff5555;
+    --proy-glow: #ff0000;
 }
 
-/* Disparo de la Alma Dorada */
-
-.proyectil-jugador {
-    width: 12px;
-    height: 12px;
-    background: var(--dorado);
-    border: 1px solid #fff5a0;
-    box-shadow:
-        0 0 6px var(--dorado),
-        0 0 14px #ff9900,
-        0 0 22px #ff6600;
+/* Ayudante rojo (mini-alma) */
+.mini-alma-proyectil {
+    --proy-nucleo: #ff0000;
+    --proy-borde: #ff1111;
+    --proy-glow: #ff0000;
 }
 
-/* Disparos en forma de línea (jugador y enemigos)
-   El ancho lo controla JS; aquí solo forzamos forma de línea. */
+
+/* Ayudante especial (cian) */
+.proyectil-especial {
+    --proy-nucleo: #7affff;
+    --proy-borde: #e0ffff;
+    --proy-glow: #00e5ff;
+}
+
+/* Enemigo → jugador (rojo) */
+.proyectil-enemigo-jugador {
+    --proy-nucleo: #ff0000;
+    --proy-borde: #ff5555;
+    --proy-glow: #ff0000;
+}
+
+.proyectil-enemigo-jugador.dorado {
+    --proy-nucleo: #d580ff;
+    --proy-borde: #f0d0ff;
+    --proy-glow: #b000ff;
+}
+
+/* Anular estilos de línea antiguos: ahora todo es rombo puntual */
 .proyectil-linea,
 .proyectil-jugador.proyectil-linea,
 .proyectil-enemigo.proyectil-linea,
 .proyectil-enemigo.proyectil-jefe.proyectil-linea {
-    min-width: 0 !important;
-    height: 3px !important;
-    min-height: 0 !important;
-    border: none !important;
-    border-radius: 1px;
-    transform-origin: 0 50% !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    border-radius: 0 !important;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important;
+    border: 2px solid var(--proy-borde, #ffffff) !important;
+    background: var(--proy-nucleo, #ffffff) !important;
+    box-shadow:
+        0 0 3px #ffffff,
+        0 0 7px var(--proy-glow, #ffffff),
+        0 0 15px var(--proy-glow, #ffffff),
+        0 0 25px color-mix(in srgb, var(--proy-glow, #ffffff) 72%, transparent) !important;
+    transform-origin: center center !important;
     animation: none !important;
-    background: linear-gradient(90deg, #ffd700, #fff5a0, transparent);
-    box-shadow:
-        0 0 6px #ffd700,
-        0 0 12px #ff9900;
 }
 
-.proyectil-enemigo.proyectil-linea {
-    background: linear-gradient(90deg, #00ff99, #caffee, transparent) !important;
-    box-shadow:
-        0 0 5px #00ff99,
-        0 0 10px #00ff99 !important;
+/* Indicadores de ataque: rojo intenso, punteado y parpadeante, sin líneas gruesas */
+.indicador-ataque-linea {
+    display: block;
+    height: 2px;
+    pointer-events: none;
+    z-index: 2147483000 !important;
+    background: repeating-linear-gradient(
+        to right,
+        #ff0015 0 4px,
+        transparent 4px 7px
+    );
+    border: 0;
+    border-radius: 1px;
+    box-shadow: 0 0 5px #ff0015, 0 0 12px rgba(255, 0, 21, 0.98), 0 0 20px rgba(255, 0, 21, 0.72);
+    animation: parpadeo-linea-ataque 0.18s steps(2, end) infinite;
 }
-
-.proyectil-enemigo.proyectil-jefe.proyectil-linea {
-    height: 4px !important;
-    background: linear-gradient(90deg, #ff8800, #ff4400, transparent) !important;
-    box-shadow:
-        0 0 6px #ff8800,
-        0 0 12px #ff4400 !important;
+.indicador-ataque-punto, .indicador-ataque-origen {
+    width: 7px;
+    height: 7px;
+    margin-left: -3.5px;
+    margin-top: -3.5px;
+    box-sizing: border-box;
+    border: 2px solid #ff0015;
+    border-radius: 50%;
+    background: rgba(255, 0, 21, 0.8);
+    box-shadow: 0 0 6px #ff0015, 0 0 13px rgba(255, 0, 21, 0.98), 0 0 20px rgba(255, 0, 21, 0.75);
+    pointer-events: none;
+    z-index: 2147483001 !important;
+    animation: parpadeo-marca-ataque 0.18s steps(2, end) infinite;
 }
-
-/* Disparo enemigo dirigido al jugador */
-
-.proyectil-enemigo-jugador {
-    width: 11px;
-    height: 11px;
-    background: #ff3030;
-    border: 1px solid #ffaaaa;
-    box-shadow:
-        0 0 5px #ff3030,
-        0 0 12px #ff0000,
-        0 0 18px #990000;
-    border-radius: 0;
+.indicador-ataque-origen {
+    width: 15px;
+    height: 15px;
+    margin-left: -7.5px;
+    margin-top: -7.5px;
+    border-width: 1.5px;
+    background: rgba(255, 0, 21, 0.5);
+    box-shadow: 0 0 7px #ff0015, 0 0 15px rgba(255, 0, 21, 0.98), 0 0 24px rgba(255, 0, 21, 0.8);
 }
-
-.proyectil-enemigo-jugador.dorado {
-    background: #b000ff;
-    border-color: #e0a0ff;
-    box-shadow:
-        0 0 6px #b000ff,
-        0 0 14px #7000aa;
+@keyframes parpadeo-linea-ataque {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.08; }
 }
-
-/* Proyectiles cian del ayudante especial */
-
-.proyectil-especial {
-    width: 10px;
-    height: 10px;
-    background: var(--cian);
-    border: 1px solid #ffffff;
-    box-shadow:
-        0 0 6px var(--cian),
-        0 0 14px #0088ff;
-}
-
-@keyframes destello-proyectil {
-    0%, 100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.45;
-    }
+@keyframes parpadeo-marca-ataque {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.08; }
 }
 
 /* ==========================================
@@ -1375,6 +1480,76 @@ body::before {
 
 #panel-progresion[hidden] {
     display: none !important;
+}
+
+#panel-almas {
+    position: fixed;
+    right: 20px;
+    bottom: 75px;
+    z-index: 20;
+    width: min(340px, calc(100vw - 40px));
+    min-height: 320px;
+    max-height: 65vh;
+    box-sizing: border-box;
+    overflow-y: auto;
+    padding: 16px;
+    background: var(--fondo-panel);
+    border: 2px solid var(--rojo);
+    box-shadow: 0 0 10px #ff000044, 0 0 25px #000;
+    color: white;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    line-height: 1.8;
+    scrollbar-color: var(--rojo) #100909;
+}
+
+/* Los menús comparten anchura, tipografía y altura mínima. */
+#panel-progresion, #panel-almas {
+    width: min(340px, calc(100vw - 40px));
+    min-height: 320px;
+    box-sizing: border-box;
+}
+#panel-almas[hidden] { display: none !important; }
+#panel-almas h2, #panel-almas h3 {
+    color: #ff7777;
+    font-size: 10px;
+    line-height: 1.8;
+    margin: 8px 0 12px;
+    text-shadow: none;
+}
+#panel-almas p { color: var(--texto); font-size: 8px; line-height: 2; }
+.lista-mejoras-alma { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+#panel-almas button {
+    max-width: 100%; padding: 9px 8px; background: #160707;
+    border: 1px solid var(--rojo); color: #ffaaaa;
+    font-family: 'Press Start 2P', monospace; font-size: 7px;
+    line-height: 1.8; overflow-wrap: anywhere; cursor: pointer;
+}
+#panel-almas button:hover:not(:disabled) { background: #420000; color: #fff; box-shadow: none; }
+#panel-almas button:disabled { color: #777; border-color: #555; background: #111; cursor: not-allowed; }
+#boton-almas {
+    position: fixed; right: 20px; bottom: 20px; z-index: 10;
+    padding: 15px; background: #111; border: 2px solid var(--rojo);
+    color: #ffaaaa; font-family: 'Press Start 2P', monospace; font-size: 11px; cursor: pointer;
+}
+#boton-almas:hover { background: #420000; box-shadow: none; }
+
+#grupo-botones-navegacion {
+    position: fixed !important;
+    left: 190px;
+    bottom: 20px;
+    z-index: 21;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100vw - 210px);
+}
+#boton-progresion, #boton-almas {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
 }
 
 #panel-progresion h2,
@@ -1825,6 +2000,14 @@ button:focus-visible {
         padding: 12px;
     }
 
+    #panel-almas { right: 10px; bottom: 60px; width: calc(100vw - 20px); min-height: 280px; max-height: 60vh; padding: 12px; }
+    #panel-almas h2, #panel-almas h3 { font-size: 8px; }
+    #panel-almas button { font-size: 6px; padding: 8px 6px; }
+    #panel-almas p { font-size: 7px; }
+    #boton-almas { right: 10px; bottom: 10px; padding: 10px; font-size: 7px; }
+    #grupo-botones-navegacion { left: 115px; bottom: 10px; max-width: calc(100vw - 125px); gap: 4px; }
+    #boton-progresion, #boton-almas, #boton-ayudantes { padding: 8px; font-size: 6px; }
+
     #panel-progresion h2,
     #panel-progresion h3 {
         font-size: 8px;
@@ -1857,4 +2040,84 @@ button:focus-visible {
         font-size: 8px;
         padding: 10px;
     }
+}
+/* Los botones de navegación comparten una fila sin superponerse. */
+#boton-progresion,
+#boton-almas {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+}
+
+/* BOTONES DE APERTURA UNIFICADOS: MEJORAS, AYUDANTES, RENACER Y ALMAS */
+#boton-mejoras,
+#boton-ayudantes,
+#boton-progresion,
+#boton-almas {
+    box-sizing: border-box !important;
+    padding: 15px !important;
+    min-height: 50px;
+    background: #111 !important;
+    border: 2px solid var(--texto) !important;
+    color: var(--amarillo) !important;
+    font-family: 'Press Start 2P', monospace !important;
+    font-size: 11px !important;
+    line-height: normal;
+    cursor: pointer;
+    box-shadow: none !important;
+}
+
+#boton-mejoras:hover,
+#boton-ayudantes:hover,
+#boton-progresion:hover,
+#boton-almas:hover {
+    background: #302500 !important;
+    color: var(--amarillo) !important;
+    box-shadow: 0 0 12px #ffff0044 !important;
+}
+
+@media (max-width: 768px) {
+    #boton-mejoras,
+    #boton-ayudantes,
+    #boton-progresion,
+    #boton-almas {
+        padding: 11px 9px !important;
+        min-height: 40px;
+        font-size: 8px !important;
+    }
+}
+
+
+/* UNIFICACIÓN REAL DE LOS CUATRO MENÚS: paneles con el mismo color y acabado. */
+#lista-mejoras,
+#lista-ayudantes,
+#panel-progresion,
+#panel-almas {
+    background: var(--fondo-panel) !important;
+    border: 2px solid var(--rojo) !important;
+    box-shadow: 0 0 10px #ff000044, 0 0 25px #000 !important;
+    color: #fff !important;
+    scrollbar-color: var(--rojo) #100909;
+}
+#panel-progresion h2, #panel-progresion h3,
+#panel-almas h2, #panel-almas h3 {
+    color: #ff5555 !important;
+    text-shadow: 0 0 8px #ff000066 !important;
+}
+#panel-progresion button, #panel-almas button {
+    background: #160707 !important;
+    border: 1px solid var(--rojo) !important;
+    color: #ff7777 !important;
+    box-shadow: none;
+}
+#panel-progresion button:hover:not(:disabled),
+#panel-almas button:hover:not(:disabled) {
+    background: #420000 !important;
+    color: #fff !important;
+    box-shadow: 0 0 10px #ff000066 !important;
+}
+#panel-progresion button:disabled, #panel-almas button:disabled {
+    background: #111 !important; color: #777 !important; border-color: #555 !important;
+    box-shadow: none !important;
 }
