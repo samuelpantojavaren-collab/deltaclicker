@@ -1,7 +1,7 @@
 "use strict";
 
 // ============================================
-// DELTACLICKER 1.0.0 — CONTENT DROP 1
+// DELTACLICKER 1.0.1 — PRIMERA REVISIÓN
 // ============================================
 
 const CLAVE_GUARDADO = "deltaclicker";
@@ -18,7 +18,8 @@ const COSTE_ALMA_VERDE = 100;
 const COSTE_ALMA_DORADA = 2500;
 const COSTE_DESTELLO = 1000000000;
 const COSTE_PARRY = 1000;
-const DURACION_PARRY = 3000;
+const DURACION_PARRY = 500;
+const COOLDOWN_PARRY = 5000;
 const CURACION_ALMA_VERDE = 5;
 const VIDA_INICIAL = 100;
 const VIDA_MAXIMA = 150;
@@ -42,6 +43,7 @@ let almaDoradaDesbloqueada = false;
 let almaActiva = "roja";
 let parryDesbloqueado = false;
 let parryHasta = 0;
+let parryCooldownHasta = 0;
 let ultimaCuracionVerde = 0;
 let bloqueoJefesHasta = 0;
 let nivelVida = 0;
@@ -205,6 +207,7 @@ const contador =
 
 const boton = document.getElementById("boton-click");
 const alma = document.querySelector(".alma");
+const temporizadorParry = document.getElementById("temporizador-parry");
 // Separar el alma del botón para poder moverla independientemente.
 if (boton && alma) {
     const zonaJuego = boton.closest(".juego") || document.body;
@@ -1136,17 +1139,20 @@ function comprarParry() {
     parryDesbloqueado = true;
     actualizarInterfaz();
     guardarProgreso();
-    mostrarAvisoRobo("¡PARRY DESBLOQUEADO! ESPACIO: inmunidad durante 3 segundos.");
+    mostrarAvisoRobo("¡PARRY DESBLOQUEADO! ESPACIO: inmunidad durante 0,5 segundos · Recarga: 5 segundos.");
 }
 
 function activarParry() {
     const ahora = Date.now();
-    if (!parryDesbloqueado || jugadorMuerto || juegoFinalizado || ahora < parryHasta) return false;
+    if (!parryDesbloqueado || jugadorMuerto || juegoFinalizado || ahora < parryHasta || ahora < parryCooldownHasta) return false;
 
     parryHasta = ahora + DURACION_PARRY;
+    parryCooldownHasta = ahora + COOLDOWN_PARRY;
+    // Congelar inmediatamente todos los controles durante el Parry.
+    teclasPulsadas.clear();
     if (alma) alma.classList.add("parry-activo");
     document.body.classList.add("parry-activo");
-    mostrarAvisoRobo("¡PARRY! INMUNE DURANTE 3 SEGUNDOS · NO PUEDES MOVERTE");
+    mostrarAvisoRobo("¡PARRY! INMUNE DURANTE 0,5 SEGUNDOS · CONTROLES BLOQUEADOS");
     return true;
 }
 
@@ -2060,7 +2066,12 @@ function moverJugador() {
         alma.classList.remove("parry-activo");
         document.body.classList.remove("parry-activo");
     }
-    if (parryHasta > ahora) return;
+    // Durante el Parry el jugador queda completamente inmóvil.
+    // Las teclas también se limpian al entrar para evitar movimiento residual.
+    if (ahora < parryHasta) {
+        teclasPulsadas.clear();
+        return;
+    }
 
     const limites = obtenerLimitesCajaVerde();
     if (!limites) return;
@@ -2255,11 +2266,14 @@ function actualizarEstela(estela, x, y, x0, y0, q) {
 }
 
 function crearProyectilJugador(dirX, dirY) {
+    // El Parry bloquea también los disparos del Alma Dorada, sin importar
+    // si se intenta disparar con clic, desde un enemigo o desde la caja.
     if (
         juegoFinalizado ||
         almaActiva !== "dorada" ||
         !almaDoradaDesbloqueada ||
-        jugadorMuerto
+        jugadorMuerto ||
+        Date.now() < parryHasta
     ) {
         return;
     }
@@ -2491,9 +2505,8 @@ function patronDirigido(esJefe) {
     const target = direccionHaciaAlma(origen.x, origen.y);
     const end = extenderHacia(origen.x, origen.y, target.x, target.y, 50);
     const opts = { linea: true, danio: esJefe ? 15 : 8, duracion: esJefe ? 850 : 1200 };
-    mostrarIndicadoresDeTrayectorias([{ x0: origen.x, y0: origen.y, x1: end.x, y1: end.y, opts }], esJefe, () => {
-        spawnProyectilEnemigo(origen.x, origen.y, end.x, end.y, esJefe, opts);
-    });
+    // El disparo dirigido no muestra indicador.
+    spawnProyectilEnemigo(origen.x, origen.y, end.x, end.y, esJefe, opts);
 }
 
 function patronAbanico(esJefe, cantidad = null) {
@@ -2516,18 +2529,13 @@ function patronAbanico(esJefe, cantidad = null) {
 function patronRafaga(esJefe, cantidad = null) {
     const n = cantidad != null ? cantidad : (esJefe ? 4 : 3);
     const intervalo = esJefe ? 110 : 140;
-    // La ráfaga avisa de cada línea prevista antes de comenzar; las balas siguen apuntando al alma al dispararse.
     const origen = obtenerOrigenDisparoEnemigo(esJefe);
-    const target = direccionHaciaAlma(origen.x, origen.y);
-    const disparos = Array.from({length:n}, () => {
+    for (let i=0;i<n;i++) setTimeout(() => {
+        if (jugadorMuerto) return;
+        const target = direccionHaciaAlma(origen.x, origen.y);
         const end = extenderHacia(origen.x, origen.y, target.x, target.y, 50);
-        return {x0:origen.x,y0:origen.y,x1:end.x,y1:end.y,opts:{linea:true,danio:esJefe?15:8,duracion:esJefe?850:1200}};
-    });
-    mostrarIndicadoresDeTrayectorias(disparos, esJefe, () => {
-        for (let i=0;i<n;i++) setTimeout(() => {
-            if (!jugadorMuerto) { const d=disparos[i]; spawnProyectilEnemigo(d.x0,d.y0,d.x1,d.y1,esJefe,d.opts); }
-        }, i*intervalo);
-    });
+        spawnProyectilEnemigo(origen.x, origen.y, end.x, end.y, esJefe, {linea:true,danio:esJefe?15:8,duracion:esJefe?850:1200});
+    }, i*intervalo);
 }
 
 function patronAnillo(esJefe, cantidad = null) {
@@ -2541,12 +2549,30 @@ function patronAnillo(esJefe, cantidad = null) {
     for(let i=0;i<n;i++) { const ang=(i/n)*Math.PI*2+Math.random()*0.08;
         disparos.push({x0:cx,y0:cy,x1:cx+Math.cos(ang)*alcance,y1:cy+Math.sin(ang)*alcance,opts:{linea:false,danio,duracion,radio:esJefe?14:11}});
     }
-    // El círculo marca dónde aparece la expansión; cada línea muestra la dirección de una bala.
-    mostrarIndicadoresDeTrayectorias(disparos, esJefe, () => disparos.forEach(d=>spawnProyectilEnemigo(d.x0,d.y0,d.x1,d.y1,esJefe,d.opts)), true);
+    // Aviso único del círculo: signo de exclamación en un cuadrado rojo punteado.
+    if (jugadorMuerto) return;
+    const aviso = crearElemento("div", "aviso-circulo-ataque");
+    aviso.setAttribute("aria-hidden", "true");
+    aviso.textContent = "!";
+    Object.assign(aviso.style, {
+        position: "fixed", left: `${cx}px`, top: `${cy}px`, transform: "translate(-50%, -50%)",
+        width: "42px", height: "42px", boxSizing: "border-box", display: "flex",
+        alignItems: "center", justifyContent: "center", color: "#ff2525", fontSize: "30px",
+        fontWeight: "900", lineHeight: "1", border: "3px dotted #ff2525", borderRadius: "3px",
+        background: "rgba(255, 0, 0, 0.08)", textShadow: "0 0 5px rgba(255,0,0,.35)",
+        zIndex: "99999", pointerEvents: "none"
+    });
+    document.body.appendChild(aviso);
+    setTimeout(() => {
+        aviso.remove();
+        if (!jugadorMuerto) disparos.forEach(d=>spawnProyectilEnemigo(d.x0,d.y0,d.x1,d.y1,esJefe,d.opts));
+    }, esJefe ? 460 : 400);
 }
 
 function patronOla(esJefe) {
-    const n=esJefe?7:5, huecos=esJefe?1+Math.floor(Math.random()*2):1, indicesHueco=new Set();
+    // Lluvia más densa, conservando pequeños huecos para esquivar.
+    const n=esJefe?18+Math.floor(Math.random()*4):12+Math.floor(Math.random()*4);
+    const huecos=esJefe?2+Math.floor(Math.random()*2):1+Math.floor(Math.random()*2), indicesHueco=new Set();
     while(indicesHueco.size<huecos) indicesHueco.add(1+Math.floor(Math.random()*(n-2)));
     const margen=40, ancho=window.innerWidth-margen*2, y0=8+Math.random()*25, targetY=window.innerHeight*0.85;
     const disparos=[];
@@ -2554,7 +2580,7 @@ function patronOla(esJefe) {
         const x0=margen+(i/(n-1))*ancho, almaPos=obtenerPosicionAlmaViewport(), x1=x0+(almaPos.x-x0)*0.18;
         disparos.push({x0,y0,x1,y1:targetY,opts:{linea:false,danio:esJefe?12:7,duracion:(esJefe?1050:1350)+Math.floor(Math.random()*80),radio:esJefe?13:11}});
     }
-    // En lluvia se marca cada punto de aparición y la trayectoria individual, respetando los huecos.
+    // La lluvia conserva indicadores de aparición y trayectoria, incluidos los huecos.
     mostrarIndicadoresDeTrayectorias(disparos, esJefe, () => disparos.forEach(d=>spawnProyectilEnemigo(d.x0,d.y0,d.x1,d.y1,esJefe,d.opts)), true);
 }
 
@@ -2763,6 +2789,7 @@ function morirJugador() {
 
     almaActiva = "roja";
     parryHasta = 0;
+    parryCooldownHasta = 0;
     bloqueoJefesHasta = 0;
     ultimaCuracionVerde = 0;
     document.body.classList.remove("parry-activo");
@@ -3483,7 +3510,11 @@ if (boton) {
     boton.addEventListener("click", event => {
         event.stopPropagation();
 
-        if (jugadorMuerto) return;
+        if (jugadorMuerto || juegoFinalizado) return;
+
+        // El Alma Verde es defensiva: los clics sobre el corazón no deben
+        // atravesarla ni generar clicks mientras permanece activa.
+        if (almaActiva === "verde") return;
 
         if (almaActiva === "dorada") {
             crearProyectilJugador();
@@ -3543,6 +3574,13 @@ window.addEventListener("keydown", event => {
                 crearProyectilJugador();
             }
         }
+        return;
+    }
+
+    // Mientras el Parry está activo no se puede mover, apuntar por teclado,
+    // cambiar de alma ni activar ninguna otra acción.
+    if (Date.now() < parryHasta) {
+        event.preventDefault();
         return;
     }
 
@@ -3617,6 +3655,8 @@ window.addEventListener("blur", () => {
 });
 
 window.addEventListener("mousemove", event => {
+    // No permitir apuntar ni cambiar la orientación durante el Parry.
+    if (Date.now() < parryHasta) return;
     posicionRaton.x = event.clientX;
     posicionRaton.y = event.clientY;
     actualizarOrientacionAlma();
@@ -3673,6 +3713,30 @@ actualizarInterfaz();
 programarSiguienteEnemigo();
 if (juegoFinalizado) mostrarFinalElDestello(false);
 
+function actualizarTemporizadorParry() {
+    if (!temporizadorParry) return;
+    if (!parryDesbloqueado) {
+        temporizadorParry.textContent = "PARRY: BLOQUEADO";
+        temporizadorParry.classList.remove("parry-listo", "parry-recarga", "parry-en-uso");
+        return;
+    }
+    const ahora = Date.now();
+    if (ahora < parryHasta) {
+        temporizadorParry.textContent = `PARRY ACTIVO · ${((parryHasta - ahora) / 1000).toFixed(1)} s`;
+        temporizadorParry.classList.add("parry-en-uso");
+        temporizadorParry.classList.remove("parry-listo", "parry-recarga");
+    } else if (ahora < parryCooldownHasta) {
+        temporizadorParry.textContent = `PARRY: ${((parryCooldownHasta - ahora) / 1000).toFixed(1)} s`;
+        temporizadorParry.classList.add("parry-recarga");
+        temporizadorParry.classList.remove("parry-listo", "parry-en-uso");
+    } else {
+        temporizadorParry.textContent = "PARRY: LISTO";
+        temporizadorParry.classList.add("parry-listo");
+        temporizadorParry.classList.remove("parry-recarga", "parry-en-uso");
+    }
+}
+
+setInterval(actualizarTemporizadorParry, 50);
 setInterval(moverJugador, 16);
 setInterval(actualizarCicloAyudantes, 50);
 

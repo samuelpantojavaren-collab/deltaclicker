@@ -2121,3 +2121,29 @@ button:focus-visible {
     background: #111 !important; color: #777 !important; border-color: #555 !important;
     box-shadow: none !important;
 }
+
+
+/* Temporizador y cooldown del Parry */
+#temporizador-parry {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 25;
+    padding: 10px 14px;
+    border: 2px dashed #ff3333;
+    background: rgba(20, 0, 0, 0.94);
+    color: #ff5555;
+    font-size: 10px;
+    line-height: 1.5;
+    text-align: center;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 0 8px currentColor;
+}
+#temporizador-parry.parry-recarga { color: #ff7777; border-color: #ff3333; }
+#temporizador-parry.parry-en-uso { color: #bff8ff; border-color: #6beaff; }
+#temporizador-parry.parry-listo { color: #55ff88; border-color: #35ff8a; }
+@media (max-width: 600px) {
+    #temporizador-parry { bottom: 10px; font-size: 8px; padding: 8px 10px; }
+}
