@@ -2445,7 +2445,7 @@ function spawnProyectilEnemigo(x0, y0, x1, y1, esJefe, opts = {}) {
     const el = crearElemento("span", clases);
     el.setAttribute("aria-hidden", "true");
 
-    const glow = esJefe ? "#ff8800" : "#00ff99";
+    const glow = esJefe ? "#ff8800" : "#ff0000";
 
     Object.assign(el.style, {
         position: "fixed",

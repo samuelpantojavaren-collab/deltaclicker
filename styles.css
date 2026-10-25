@@ -1006,11 +1006,9 @@ body.parry-activo::after {
 }
 
 /* ==========================================
-   PROYECTILES — Rombos neón estilo Deltarune
-   Todos los proyectiles: rombo 16×16, núcleo intenso,
-   borde luminoso y brillo exterior. Solo cambia el color.
+   PROYECTILES — cuadrados de energía neón
+   Inspirados en el brillo de las almas; sin bordes ni estelas.
    ========================================== */
-
 .mini-alma-proyectil,
 .proyectil-enemigo,
 .proyectil-especial,
@@ -1018,132 +1016,59 @@ body.parry-activo::after {
 .proyectil-enemigo-jugador,
 .proyectil-bala-deltarune {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 20px !important;
-    height: 20px !important;
-    min-width: 20px !important;
-    min-height: 20px !important;
-    pointer-events: none;
-    z-index: 15;
+    top: 0; left: 0;
+    width: 12px !important; height: 12px !important;
+    min-width: 12px !important; min-height: 12px !important;
+    box-sizing: border-box;
+    pointer-events: none; z-index: 15;
+    border: 0 !important; outline: 0 !important;
     border-radius: 0 !important;
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important;
-    border: 2px solid var(--proy-borde, #ffffff) !important;
-    background: var(--proy-nucleo, #ffffff) !important;
-    box-shadow:
-        0 0 3px #ffffff,
-        0 0 7px var(--proy-glow, #ffffff),
-        0 0 15px var(--proy-glow, #ffffff),
-        0 0 25px color-mix(in srgb, var(--proy-glow, #ffffff) 72%, transparent) !important;
-    filter: none !important;
-    animation: none !important;
-    opacity: 1 !important;
-    image-rendering: pixelated;
-    transform-origin: center center;
-}
-
-/* Estela alargada detrás del rombo — color del proyectil, se desvanece */
-.proyectil-estela {
-    position: absolute;
-    pointer-events: none;
-    z-index: 14;
-    width: 34px;
-    height: 10px;
-    border-radius: 4px;
-    background: linear-gradient(
-        90deg,
-        var(--proy-glow, #ffffff) 0%,
-        color-mix(in srgb, var(--proy-glow, #ffffff) 40%, transparent) 55%,
-        transparent 100%
-    );
-    box-shadow:
-        0 0 7px var(--proy-glow, #ffffff),
-        0 0 15px color-mix(in srgb, var(--proy-glow, #ffffff) 65%, transparent);
-    opacity: 0.92;
-    transform-origin: 100% 50%;
     clip-path: none !important;
-    border: none !important;
+    background: var(--proy-glow, #ffd700) !important;
+    box-shadow:
+        0 0 5px 2px var(--proy-glow, #ffd700),
+        0 0 12px 5px var(--proy-glow, #ffd700),
+        0 0 24px 8px color-mix(in srgb, var(--proy-glow, #ffd700) 72%, transparent) !important;
     filter: none !important;
-    animation: none !important;
+    animation: none !important; opacity: 1 !important;
+    image-rendering: pixelated; transform-origin: center;
 }
 
-/* --- Colores por tipo (solo varían --proy-*) --- */
+/* El cuadrado es una sola pieza de luz: nada de núcleo, borde o estrella. */
+.mini-alma-proyectil::before, .proyectil-enemigo::before,
+.proyectil-especial::before, .proyectil-jugador::before,
+.proyectil-enemigo-jugador::before, .proyectil-bala-deltarune::before,
+.mini-alma-proyectil::after, .proyectil-enemigo::after,
+.proyectil-especial::after, .proyectil-jugador::after,
+.proyectil-enemigo-jugador::after, .proyectil-bala-deltarune::after {
+    content: none !important; display: none !important;
+}
+.proyectil-estela { display: none !important; }
 
-/* Alma Dorada (jugador) */
-.proyectil-jugador,
-.proyectil-jugador.proyectil-bala-deltarune {
-    --proy-nucleo: #ffe566;
-    --proy-borde: #fff8c8;
+/* Colores y halo amplios, como los de las almas del juego. */
+.proyectil-jugador, .proyectil-jugador.proyectil-bala-deltarune {
     --proy-glow: #ffd700;
 }
-
-/* Enemigos normales */
-.proyectil-enemigo {
-    --proy-nucleo: #7affd0;
-    --proy-borde: #e0fff5;
-    --proy-glow: #00ff99;
-}
-
-/* Jefe */
+.proyectil-enemigo { --proy-glow: #ff3333; }
 .proyectil-enemigo.proyectil-jefe {
-    --proy-nucleo: #ffb84d;
-    --proy-borde: #ffe0a0;
     --proy-glow: #ff8800;
+    width: 12px !important; height: 12px !important;
+    min-width: 12px !important; min-height: 12px !important;
 }
+.proyectil-enemigo.abismal { --proy-glow: #ff3030; }
+.mini-alma-proyectil, .proyectil-enemigo-jugador { --proy-glow: #ff0000; }
+.proyectil-especial { --proy-glow: #00ffff; }
+.proyectil-enemigo-jugador.dorado { --proy-glow: #b000ff; }
 
-/* Abismal (rojo intenso) */
-.proyectil-enemigo.abismal {
-    --proy-nucleo: #ff0000;
-    --proy-borde: #ff5555;
-    --proy-glow: #ff0000;
-}
-
-/* Ayudante rojo (mini-alma) */
-.mini-alma-proyectil {
-    --proy-nucleo: #ff0000;
-    --proy-borde: #ff1111;
-    --proy-glow: #ff0000;
-}
-
-
-/* Ayudante especial (cian) */
-.proyectil-especial {
-    --proy-nucleo: #7affff;
-    --proy-borde: #e0ffff;
-    --proy-glow: #00e5ff;
-}
-
-/* Enemigo → jugador (rojo) */
-.proyectil-enemigo-jugador {
-    --proy-nucleo: #ff0000;
-    --proy-borde: #ff5555;
-    --proy-glow: #ff0000;
-}
-
-.proyectil-enemigo-jugador.dorado {
-    --proy-nucleo: #d580ff;
-    --proy-borde: #f0d0ff;
-    --proy-glow: #b000ff;
-}
-
-/* Anular estilos de línea antiguos: ahora todo es rombo puntual */
-.proyectil-linea,
-.proyectil-jugador.proyectil-linea,
-.proyectil-enemigo.proyectil-linea,
-.proyectil-enemigo.proyectil-jefe.proyectil-linea {
-    width: 20px !important;
-    height: 20px !important;
-    min-width: 20px !important;
-    min-height: 20px !important;
-    border-radius: 0 !important;
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important;
-    border: 2px solid var(--proy-borde, #ffffff) !important;
-    background: var(--proy-nucleo, #ffffff) !important;
-    box-shadow:
-        0 0 3px #ffffff,
-        0 0 7px var(--proy-glow, #ffffff),
-        0 0 15px var(--proy-glow, #ffffff),
-        0 0 25px color-mix(in srgb, var(--proy-glow, #ffffff) 72%, transparent) !important;
+/* Los ataques lineales usan el mismo cuadrado, no una barra alargada. */
+.proyectil-linea, .proyectil-jugador.proyectil-linea,
+.proyectil-enemigo.proyectil-linea, .proyectil-enemigo.proyectil-jefe.proyectil-linea {
+    width: 12px !important; height: 12px !important;
+    min-width: 12px !important; min-height: 12px !important;
+    border: 0 !important; border-radius: 0 !important;
+    clip-path: none !important;
+    background: var(--proy-glow, #fff) !important;
+    box-shadow: 0 0 5px 2px var(--proy-glow, #fff), 0 0 12px 5px var(--proy-glow, #fff), 0 0 24px 8px color-mix(in srgb, var(--proy-glow, #fff) 72%, transparent) !important;
     transform-origin: center center !important;
     animation: none !important;
 }
@@ -2146,4 +2071,36 @@ button:focus-visible {
 #temporizador-parry.parry-listo { color: #55ff88; border-color: #35ff8a; }
 @media (max-width: 600px) {
     #temporizador-parry { bottom: 10px; font-size: 8px; padding: 8px 10px; }
+}
+
+/* Ajuste final de personalidad: núcleo blanco neón y rojo enemigo consistente. */
+.mini-alma-proyectil::before,
+.proyectil-enemigo::before,
+.proyectil-especial::before,
+.proyectil-jugador::before,
+.proyectil-enemigo-jugador::before,
+.proyectil-bala-deltarune::before {
+    content: "" !important;
+    display: block !important;
+    position: absolute !important;
+    width: 5px !important;
+    height: 5px !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 4px 2px #ffffff, 0 0 9px 3px #ffffffcc !important;
+    pointer-events: none !important;
+}
+/* Los proyectiles enemigos normales y abismales usan rojo neón puro, nunca coral. */
+.proyectil-enemigo,
+.proyectil-enemigo.abismal,
+.proyectil-enemigo.proyectil-jefe {
+    --proy-glow: #ff0000 !important;
+    background: #ff0000 !important;
+}
+
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.65); }
 }
