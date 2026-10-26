@@ -2052,7 +2052,7 @@ button:focus-visible {
 #temporizador-parry {
     position: fixed;
     bottom: 18px;
-    left: 50%;
+    left: calc(50% + 135px);
     transform: translateX(-50%);
     z-index: 25;
     padding: 10px 14px;
@@ -2070,7 +2070,7 @@ button:focus-visible {
 #temporizador-parry.parry-en-uso { color: #bff8ff; border-color: #6beaff; }
 #temporizador-parry.parry-listo { color: #55ff88; border-color: #35ff8a; }
 @media (max-width: 600px) {
-    #temporizador-parry { bottom: 10px; font-size: 8px; padding: 8px 10px; }
+    #temporizador-parry { left: calc(50% + 65px); bottom: 10px; font-size: 8px; padding: 8px 10px; }
 }
 
 /* Ajuste final de personalidad: núcleo blanco neón y rojo enemigo consistente. */
@@ -2104,3 +2104,186 @@ button:focus-visible {
 
     100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.65); }
 }
+
+
+/* Deltaclicker: nuevos ayudantes y ataques */
+.ayudante-electrico {
+    position: fixed !important;
+    display: block;
+    width: 22px !important;
+    height: 22px !important;
+    box-sizing: border-box;
+    background: #36c5e8 !important;
+    border: 2px solid #b7f5ff !important;
+    box-shadow: 0 0 8px #36c5e8, 0 0 18px #1685b7 !important;
+    z-index: 10001 !important;
+    pointer-events: none;
+    transform: translate(-50%, -50%) rotate(45deg) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+.ayudante-electrico-centro {
+    position: absolute !important;
+    display: block !important;
+    width: 9px !important;
+    height: 9px !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    background: #e8fcff !important;
+    border: 1px solid #ffffff !important;
+    box-shadow: 0 0 5px #ffffff, 0 0 9px #9af0ff !important;
+}
+.rayo-ayudante-electrico {
+    position: fixed; height: 4px; transform-origin: 0 50%; z-index: 9999;
+    pointer-events: none; display: none; border-radius: 3px;
+    background: #9af0ff;
+    box-shadow: 0 0 4px #ffffff, 0 0 8px #43c9ed, 0 0 15px #1685b7;
+    opacity: .95;
+}
+.ataque-bordeado {
+    position: fixed; box-sizing: border-box; z-index: 9998; pointer-events: none;
+    border: 5px solid #ff526d; box-shadow: 0 0 8px #ff526d, inset 0 0 8px #ff526d;
+    animation: bordeado-parpadeo .35s ease-in-out infinite alternate;
+}
+@keyframes bordeado-parpadeo { from { opacity: .65; } to { opacity: 1; } }
+.alma-apoyo { filter: hue-rotate(120deg); }
+#mejoras-deltaclicker { display: grid; gap: 8px; margin: 10px 0; }
+#mejoras-deltaclicker button { width: 100%; }
+
+.ayudante-apoyo {
+    position: absolute; width: 22px; height: 22px; border-radius: 50% 50% 50% 0;
+    background: #78e6a2; border: 2px solid #d0ffe0; transform: translate(-50%, -50%) rotate(-45deg);
+    box-shadow: 0 0 8px #78e6a2, 0 0 18px #319b63; z-index: 12; pointer-events: none;
+}
+
+.ataque-bordeado.bordeado-aviso { border-color: #ffb45c; box-shadow: 0 0 6px #ffb45c; opacity: .45; animation: bordeado-aviso .25s ease-in-out infinite alternate; }
+.ataque-bordeado.bordeado-activo { border-color: #ff526d; box-shadow: 0 0 8px #ff526d, inset 0 0 8px #ff526d; }
+@keyframes bordeado-aviso { from { opacity: .35; } to { opacity: .8; } }
+
+/* El ataque en cruz dispara segmentos láser visibles; la lluvia conserva sus proyectiles actuales. */
+.proyectil-enemigo.proyectil-laser {
+    width: auto !important; /* el ancho real lo fija JavaScript a toda la trayectoria */
+    min-width: 0 !important;
+    height: 7px !important;
+    min-height: 7px !important;
+    border: 0 !important;
+    border-radius: 3px !important;
+    background: linear-gradient(180deg, #ffd7d7 0%, #ff3030 35%, #ff0000 70%, #ffb0b0 100%) !important;
+    box-shadow: 0 0 4px 2px #ff3030, 0 0 10px 4px #ff0000, 0 0 22px 6px #ff000088 !important;
+    transform-origin: 0 50% !important;
+}
+.proyectil-enemigo.proyectil-jefe.proyectil-laser {
+    background: linear-gradient(180deg, #fff0d8 0%, #ff9b45 35%, #ff6500 70%, #ffd0a0 100%) !important;
+    box-shadow: 0 0 4px 2px #ff9b45, 0 0 10px 4px #ff6500, 0 0 22px 6px #ff650088 !important;
+}
+
+/* Cuatro compras independientes: una para cada ayudante eléctrico. */
+#mejoras-ayudantes-electricos { display: grid; grid-template-columns: 1fr; gap: 7px; margin: 8px 0; }
+#mejoras-ayudantes-electricos button { width: 100%; }
+
+/* Deltaclicker 1.4.4: capa fija y sprites eléctricos visibles sobre el juego. */
+#capa-ayudantes-electricos {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: visible !important;
+    pointer-events: none !important;
+    z-index: 100000 !important;
+}
+#capa-ayudantes-electricos .rayo-ayudante-electrico {
+    position: fixed !important;
+    z-index: 1 !important;
+}
+#capa-ayudantes-electricos .ayudante-electrico {
+    /* Mismo lenguaje visual que los ayudantes normales, con marco en rombo. */
+    position: fixed !important;
+    display: block !important;
+    width: 22px !important;
+    height: 22px !important;
+    padding: 0 !important;
+    border: 2px solid #42d8ff !important;
+    border-radius: 0 !important;
+    background: #100624 !important;
+    clip-path: none !important;
+    box-shadow: 0 0 8px #42d8ff, 0 0 18px #1685b7 !important;
+    filter: drop-shadow(0 0 5px #00cfff) drop-shadow(0 0 12px #1685b7) !important;
+    transform: translate(-50%, -50%) rotate(45deg) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: 2 !important;
+}
+#capa-ayudantes-electricos .ayudante-electrico-centro {
+    position: absolute !important;
+    display: block !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 10px !important;
+    height: 10px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 2px solid #42d8ff !important;
+    border-radius: 0 !important;
+    background: #100624 !important;
+    clip-path: none !important;
+    box-shadow: 0 0 6px #42d8ff, 0 0 12px #1685b7 !important;
+    transform: translate(-50%, -50%) rotate(0deg) !important;
+}
+#capa-ayudantes-electricos .ayudante-electrico-centro::after {
+    content: "" !important;
+    position: absolute !important;
+    width: 8px !important;
+    height: 8px !important;
+    left: 50% !important;
+    top: 50% !important;
+    background: #e8fcff !important;
+    transform: translate(-50%, -50%) rotate(45deg) !important;
+    box-shadow: 0 0 5px #ffffff, 0 0 9px #9af0ff !important;
+}
+#mejoras-ayudantes-electricos {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+}
+#mejoras-ayudantes-electricos .compra-ayudante-electrico {
+    display: block !important;
+    width: 100% !important;
+    min-height: 42px !important;
+    white-space: normal !important;
+    text-align: left !important;
+}
+
+/* Alma verde: giro continuo y suave del cuadrado mientras está activa. */
+#boton-click.modo-verde {
+    animation: giro-cuadrado-verde 7s linear infinite;
+}
+@keyframes giro-cuadrado-verde {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Deltaclicker 1.4.8: el ayudante usa la misma forma CSS que el alma del jugador. */
+.ayudante-apoyo.alma {
+    position: absolute !important;
+    width: 22px !important;
+    height: 22px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #aaff00 !important;
+    transform: translate(-50%, -50%) rotate(45deg) !important;
+    filter: drop-shadow(0 0 4px #aaff00) drop-shadow(0 0 9px #aaff00) drop-shadow(0 0 16px #78ff00) !important;
+    clip-path: none !important;
+}
+.ayudante-apoyo.alma::before,
+.ayudante-apoyo.alma::after {
+    content: "" !important;
+    position: absolute !important;
+    width: 22px !important;
+    height: 22px !important;
+    background: #aaff00 !important;
+    border: 0 !important;
+}
+.ayudante-apoyo.alma::before { top: -11px !important; left: 0 !important; }
+.ayudante-apoyo.alma::after { left: -11px !important; top: 0 !important; }

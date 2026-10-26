@@ -1,7 +1,7 @@
 "use strict";
 
 // ============================================
-// DELTACLICKER 1.0.1 — PRIMERA REVISIÓN
+// DELTACLICKER 1.1.0 — ACTUALIZACIÓN DE COMBATE
 // ============================================
 
 const CLAVE_GUARDADO = "deltaclicker";
@@ -91,6 +91,17 @@ const durabilidades = {
     2: { coste: 50, comprada: false },
     3: { coste: 100, comprada: false }
 };
+const mejoraDisparoDorado = { nivel: 0, precios: [25, 50, 100, 200, 400] };
+const mejoraExpansion = { nivel: 0, precios: [20, 40, 80, 160, 320] };
+let ayudantesElectricosComprados = [false, false, false, false];
+// Compatibilidad: se mantiene como indicador derivado para el resto del juego.
+let ayudanteElectricoComprado = false;
+let ayudanteApoyoComprado = false;
+let ultimoPulsoApoyo = 0;
+let ultimoDisparoElectrico = 0;
+let proximoBordeado = 0;
+let soporteBoss = null;
+let soporteBossDerrotado = false;
 
 function crearAyudante(coste) {
     return {
@@ -276,6 +287,10 @@ function maxVida() {
 
 function obtenerDefensa() {
     return Math.min(0.5, nivelDefensa * 0.1);
+}
+
+function multiplicadorDisparoDorado() {
+    return 1 + (2 * mejoraDisparoDorado.nivel / mejoraDisparoDorado.precios.length);
 }
 
 function obtenerMultiplicador() {
@@ -588,6 +603,45 @@ function crearPanelesNuevos() {
         compras.appendChild(dorada);
 
         panelAlmas.appendChild(crearElemento("h3", "", "MEJORAS DE ALMA Y COMBATE"));
+        const nuevasMejoras = crearElemento("div", "lista-mejoras-alma");
+        nuevasMejoras.id = "mejoras-deltaclicker";
+        panelAlmas.appendChild(nuevasMejoras);
+        const disparo = crearElemento("button", "", "Mejora de disparo dorado");
+        disparo.id = "mejora-disparo-dorado";
+        disparo.type = "button";
+        disparo.addEventListener("click", comprarMejoraDisparoDorado);
+        nuevasMejoras.appendChild(disparo);
+        const expansion = crearElemento("button", "", "Expandir cuadro de batalla");
+        expansion.id = "mejora-expansion-cuadro";
+        expansion.type = "button";
+        expansion.addEventListener("click", comprarMejoraExpansion);
+        nuevasMejoras.appendChild(expansion);
+        const electricos = crearElemento("div", "lista-mejoras-alma");
+        electricos.id = "mejoras-ayudantes-electricos";
+        nuevasMejoras.appendChild(electricos);
+        const nombresEsquinasElectricas = [
+            "esquina superior izquierda",
+            "esquina superior derecha",
+            "esquina inferior izquierda",
+            "esquina inferior derecha"
+        ];
+        for (let i = 0; i < 4; i++) {
+            const electrico = crearElemento(
+                "button",
+                "compra-ayudante-electrico",
+                `Desbloquear ayudante eléctrico ${i + 1} · ${nombresEsquinasElectricas[i]} · 5.000 clicks`
+            );
+            electrico.id = `comprar-ayudante-electrico-${i}`;
+            electrico.type = "button";
+            electrico.dataset.esquina = nombresEsquinasElectricas[i];
+            electrico.addEventListener("click", () => comprarAyudanteElectrico(i));
+            electricos.appendChild(electrico);
+        }
+        const apoyo = crearElemento("button", "", "Ayudante de apoyo");
+        apoyo.id = "comprar-ayudante-apoyo";
+        apoyo.type = "button";
+        apoyo.addEventListener("click", comprarAyudanteApoyo);
+        nuevasMejoras.appendChild(apoyo);
         const combate = crearElemento("div", "lista-mejoras-alma");
         combate.id = "mejoras-alma";
         panelAlmas.appendChild(combate);
@@ -676,6 +730,16 @@ function cargarProgreso() {
         esencia = numeroSeguro(d.esencia);
         renacimientos = numeroSeguro(d.renacimientos);
         juegoFinalizado = d.juegoFinalizado === true;
+        mejoraDisparoDorado.nivel = Math.min(mejoraDisparoDorado.precios.length, numeroSeguro(d.mejoraDisparoDorado?.nivel));
+        mejoraExpansion.nivel = Math.min(mejoraExpansion.precios.length, numeroSeguro(d.mejoraExpansion?.nivel));
+        if (Array.isArray(d.ayudantesElectricosComprados)) {
+            ayudantesElectricosComprados = [0, 1, 2, 3].map(i => d.ayudantesElectricosComprados[i] === true);
+        } else if (d.ayudanteElectricoComprado === true) {
+            // Las partidas antiguas compraban el conjunto completo con un único botón.
+            ayudantesElectricosComprados = [true, true, true, true];
+        }
+        ayudanteElectricoComprado = ayudantesElectricosComprados.some(Boolean);
+        ayudanteApoyoComprado = d.ayudanteApoyoComprado === true;
 
         almaVerdeDesbloqueada = d.almaVerdeDesbloqueada === true;
         almaDoradaDesbloqueada = d.almaDoradaDesbloqueada === true;
@@ -766,6 +830,11 @@ function guardarProgreso() {
             tpGanadoRun,
             renacimientos,
             juegoFinalizado,
+            mejoraDisparoDorado: { nivel: mejoraDisparoDorado.nivel },
+            mejoraExpansion: { nivel: mejoraExpansion.nivel },
+            ayudanteElectricoComprado,
+            ayudantesElectricosComprados,
+            ayudanteApoyoComprado,
             almaVerdeDesbloqueada,
             almaDoradaDesbloqueada,
             parryDesbloqueado,
@@ -1412,6 +1481,266 @@ function actualizarVisibilidadAyudantes() {
     });
 }
 
+function comprarMejoraDisparoDorado() {
+    const n = mejoraDisparoDorado.nivel;
+    if (n >= mejoraDisparoDorado.precios.length || tpTotal < mejoraDisparoDorado.precios[n]) return;
+    tpTotal -= mejoraDisparoDorado.precios[n];
+    mejoraDisparoDorado.nivel++;
+    actualizarInterfaz(); guardarProgreso();
+}
+function actualizarTamanoCuadroBatalla() {
+    if (!boton) return;
+    // El cuadro solo crece según los niveles comprados: +10 % por nivel, hasta +50 %.
+    const nivelComprado = Math.max(0, Math.min(mejoraExpansion.precios.length, mejoraExpansion.nivel));
+    const tam = 240 * (1 + 0.1 * nivelComprado);
+    boton.style.width = `${tam}px`;
+    boton.style.height = `${tam}px`;
+}
+
+function comprarMejoraExpansion() {
+    const n = mejoraExpansion.nivel;
+    // Sin TP suficiente o con todos los niveles comprados, no se modifica el cuadro.
+    if (n >= mejoraExpansion.precios.length || tpTotal < mejoraExpansion.precios[n]) return;
+    tpTotal -= mejoraExpansion.precios[n];
+    mejoraExpansion.nivel++;
+    actualizarTamanoCuadroBatalla();
+    mantenerJugadorEnZona(); colocarTodosLosAyudantes();
+    actualizarInterfaz(); guardarProgreso();
+}
+function comprarAyudanteElectrico(indice) {
+    const coste = 5000;
+    if (indice < 0 || indice > 3 || ayudantesElectricosComprados[indice] || clicks < coste) return;
+    clicks -= coste;
+    ayudantesElectricosComprados[indice] = true;
+    ayudanteElectricoComprado = ayudantesElectricosComprados.some(Boolean);
+    crearSpriteAyudanteElectrico(); actualizarInterfaz(); guardarProgreso();
+}
+function comprarAyudanteApoyo() {
+    const coste = 10000;
+    if (ayudanteApoyoComprado || clicks < coste) return;
+    clicks -= coste; ayudanteApoyoComprado = true;
+    actualizarInterfaz(); guardarProgreso();
+}
+function obtenerCapaAyudantesElectricos() {
+    let capa = document.getElementById("capa-ayudantes-electricos");
+    if (!capa) {
+        capa = crearElemento("div", "capa-ayudantes-electricos");
+        capa.id = "capa-ayudantes-electricos";
+        capa.setAttribute("aria-hidden", "true");
+        document.body.appendChild(capa);
+    }
+    return capa;
+}
+
+function crearSpriteAyudanteElectrico() {
+    if (!zonaAyudantes) return;
+    const capa = obtenerCapaAyudantesElectricos();
+    for (let i = 0; i < 4; i++) {
+        let el = document.getElementById(`ayudante-electrico-${i}`);
+        if (!el) {
+            el = crearElemento("span", "ayudante-electrico");
+            el.id = `ayudante-electrico-${i}`;
+            el.setAttribute("aria-hidden", "true");
+            el.appendChild(crearElemento("span", "ayudante-electrico-centro"));
+            capa.appendChild(el);
+        } else {
+            if (el.parentElement !== capa) capa.appendChild(el);
+            if (!el.querySelector(".ayudante-electrico-centro")) {
+                el.appendChild(crearElemento("span", "ayudante-electrico-centro"));
+            }
+        }
+        let ray = document.getElementById(`rayo-ayudante-electrico-${i}`);
+        if (!ray) {
+            ray = crearElemento("span", "rayo-ayudante-electrico");
+            ray.id = `rayo-ayudante-electrico-${i}`;
+            ray.setAttribute("aria-hidden", "true");
+            capa.appendChild(ray);
+        } else if (ray.parentElement !== capa) {
+            capa.appendChild(ray);
+        }
+    }
+    colocarAyudanteElectrico();
+}
+
+function obtenerPuntosAyudantesElectricos() {
+    if (!boton) return [];
+    // La referencia es el borde REAL del cuadrado verde (#boton-click),
+    // no el centro del escenario ni el contenedor de los ayudantes.
+    const b = boton.getBoundingClientRect();
+    const margen = 17;
+    return [
+        { x: b.left - margen,  y: b.top - margen },
+        { x: b.right + margen, y: b.top - margen },
+        { x: b.left - margen,  y: b.bottom + margen },
+        { x: b.right + margen, y: b.bottom + margen }
+    ];
+}
+
+function colocarAyudanteElectrico() {
+    const puntos = obtenerPuntosAyudantesElectricos();
+    puntos.forEach((p, i) => {
+        const el = document.getElementById(`ayudante-electrico-${i}`);
+        if (!el) return;
+        // left/top son el centro exacto de cada rombo, fuera de las esquinas verdes.
+        el.style.left = `${p.x}px`;
+        el.style.top = `${p.y}px`;
+        el.style.display = ayudantesElectricosComprados[i] ? "block" : "none";
+    });
+    return puntos;
+}
+
+function actualizarAyudanteElectrico() {
+    if (!ayudantesElectricosComprados.some(Boolean) || jugadorMuerto) {
+        for (let i = 0; i < 4; i++) {
+            const ray = document.getElementById(`rayo-ayudante-electrico-${i}`);
+            const el = document.getElementById(`ayudante-electrico-${i}`);
+            if (ray) ray.style.display = "none";
+            if (el) el.style.display = "none";
+        }
+        return;
+    }
+
+    crearSpriteAyudanteElectrico();
+    const puntosOrigen = colocarAyudanteElectrico();
+
+    const objetivoPrincipal = jefe && !jefe.derrotado
+        ? jefe
+        : enemigos.find(e => !e.derrotado && e.elemento?.isConnected);
+    const vivos = jefe && !jefe.derrotado
+        ? [jefe]
+        : enemigos.filter(e => !e.derrotado && e.elemento?.isConnected);
+
+    if (!vivos.length) {
+        for (let i = 0; i < 4; i++) {
+            const ray = document.getElementById(`rayo-ayudante-electrico-${i}`);
+            if (ray) ray.style.display = "none";
+        }
+        return;
+    }
+
+    const ahora = Date.now();
+    const intervaloDanio = 650;
+    // Los láseres nacen de las cuatro esquinas del cuadrado verde,
+    // usando exactamente las mismas coordenadas que los rombos.
+    const centros = puntosOrigen;
+
+    centros.forEach((origen, i) => {
+        const ray = document.getElementById(`rayo-ayudante-electrico-${i}`);
+        const sprite = document.getElementById(`ayudante-electrico-${i}`);
+        if (!origen || !ray || !sprite) return;
+        if (!ayudantesElectricosComprados[i]) {
+            ray.style.display = "none";
+            sprite.style.display = "none";
+            return;
+        }
+        sprite.style.display = "block";
+        // Cada ayudante apunta al enemigo vivo más cercano a su esquina.
+        const objetivo = vivos.reduce((best, e) => {
+            const r = e.elemento.getBoundingClientRect();
+            const d = Math.hypot(r.left + r.width / 2 - origen.x, r.top + r.height / 2 - origen.y);
+            return !best || d < best.d ? { e, d } : best;
+        }, null)?.e || objetivoPrincipal;
+        if (!objetivo?.elemento) { ray.style.display = "none"; return; }
+
+        const r = objetivo.elemento.getBoundingClientRect();
+        const x1 = r.left + r.width / 2;
+        const y1 = r.top + r.height / 2;
+        const dx = x1 - origen.x;
+        const dy = y1 - origen.y;
+        const distancia = Math.hypot(dx, dy);
+        const angulo = Math.atan2(dy, dx) * 180 / Math.PI;
+        Object.assign(ray.style, {
+            display: "block",
+            left: `${origen.x}px`,
+            top: `${origen.y}px`,
+            width: `${distancia}px`,
+            transform: `rotate(${angulo}deg)`
+        });
+
+        // El láser permanece visible; el daño se aplica en pulsos para que
+        // cuatro ayudantes no multipliquen excesivamente el daño por fotograma.
+        const clave = `ultimoDanioAyudanteElectrico${i}`;
+        if (!window[clave]) window[clave] = 0;
+        if (ahora - window[clave] >= intervaloDanio) {
+            window[clave] = ahora;
+            // Cada ayudante hace solo el 25 % del daño normal (75 % menos).
+            // Los métodos de daño existentes requieren el alma dorada, así que
+            // se habilitan solo durante esta llamada síncrona y se restaura luego.
+            const almaAnterior = almaActiva;
+            almaActiva = "dorada";
+            if (objetivo === jefe) atacarJefe(0.25);
+            else atacarEnemigo(objetivo, 0.25);
+            almaActiva = almaAnterior;
+            objetivo.velocidadOrbita = Math.min(objetivo.velocidadOrbita || 0, 0.00007);
+            objetivo.ultimoRalentizado = ahora;
+        }
+    });
+}
+function crearSpriteAyudanteApoyo() {
+    if (!ayudanteApoyoComprado || !zonaAyudantes) return;
+    let el=document.getElementById("ayudante-apoyo");
+    if(!el){el=crearElemento("span","ayudante-apoyo alma alma-verde");el.id="ayudante-apoyo";el.setAttribute("aria-hidden","true");zonaAyudantes.appendChild(el);}
+    const z=zonaAyudantes.getBoundingClientRect(), b=boton?.getBoundingClientRect();
+    if(b){
+        // El ayudante de apoyo va por encima de la fila de ayudantes especiales.
+        el.style.left=`${b.left-z.left+b.width/2}px`;
+        el.style.top=`${Math.max(4, b.top-z.top-98)}px`;
+    }
+}
+function actualizarAyudanteApoyo() {
+    if (!ayudanteApoyoComprado || jugadorMuerto) return;
+    crearSpriteAyudanteApoyo();
+    const ahora=Date.now();
+    const intervalo=1000;
+    if (ahora-ultimoPulsoApoyo < intervalo) return;
+    ultimoPulsoApoyo=ahora;
+    const cura = almaActiva === "verde" ? 3.75 : 2.5;
+    vidaJugador=Math.min(maxVida(), vidaJugador+cura);
+    actualizarBarraVida();
+}
+function crearEnemigoApoyo() {
+    if (!jefe || jefe.derrotado || soporteBoss || !zonaEnemigos) return;
+    const el=crearElemento("button","alma-enemiga alma-apoyo");
+    el.type="button"; el.id="enemigo-apoyo"; el.setAttribute("aria-label","VIGÍA CURATIVO");
+    const forma=crearElemento("span","alma-enemiga-forma");
+    const nombre=crearElemento("span","nombre-enemigo","VIGÍA CURATIVO");
+    const vida=crearElemento("span","vida-enemigo"); const textoVida=crearElemento("span","texto-vida-enemigo");
+    el.append(forma,nombre,vida,textoVida); crearBarraVida(vida, 12);
+    soporteBoss={id:siguienteIdEnemigo++,tipo:"apoyo",vidaActual:12,vidaMaxima:12,recompensa:0,roboTP:0,roboInicial:0,elemento:el,vida,textoVida,angulo:0,creado:Date.now(),derrotado:false,ultimoRobo:Date.now(),velocidadOrbita:0,ultimoBordeado:Date.now(),ultimaCuracion:Date.now()};
+    el.addEventListener("click",ev=>{ev.stopPropagation(); if(almaActiva==="dorada"&&!jugadorMuerto) crearProyectilJugador();});
+    zonaEnemigos.appendChild(el); actualizarVidaEnemigo(soporteBoss);
+}
+function actualizarEnemigoApoyo() {
+    if (!jefe || jefe.derrotado) { if(soporteBoss){soporteBoss.elemento.remove();soporteBoss=null;} return; }
+    if (!soporteBoss && !soporteBossDerrotado) crearEnemigoApoyo();
+    if (!soporteBoss) return;
+    const w=zonaEnemigos.clientWidth,h=zonaEnemigos.clientHeight,t=Date.now();
+    soporteBoss.elemento.style.left=`${w*0.78}px`; soporteBoss.elemento.style.top=`${h*0.72}px`;
+    if(t-(soporteBoss.ultimoBordeado||0)>9000){ soporteBoss.ultimoBordeado=t; ejecutarAtaqueBordeado(); }
+    if(t-(soporteBoss.ultimaCuracion||0)>2200){ soporteBoss.ultimaCuracion=t; if(jefe && !jefe.derrotado){jefe.vidaActual=Math.min(jefe.vidaMaxima,jefe.vidaActual+2);actualizarVidaJefe();} }
+}
+function ejecutarAtaqueBordeado() {
+    const r=boton?.getBoundingClientRect(); if(!r||jugadorMuerto) return;
+    const borde=crearElemento("div","ataque-bordeado");
+    Object.assign(borde.style,{left:`${r.left+8}px`,top:`${r.top+8}px`,width:`${r.width-16}px`,height:`${r.height-16}px`});
+    document.body.appendChild(borde);
+    const inicioAtaque=Date.now();
+    borde.classList.add("bordeado-aviso");
+    setTimeout(()=>{borde.classList.remove("bordeado-aviso");borde.classList.add("bordeado-activo");},450);
+    setTimeout(()=>borde.remove(),1500);
+    proximoBordeado=Date.now()+9000;
+    let golpeado=false;
+    const revisar=()=>{
+        if(!borde.isConnected||jugadorMuerto||golpeado||Date.now()-inicioAtaque<450) return;
+        const a=alma?.getBoundingClientRect();
+        if(a){const margen=7; const dentro=a.left<r.right-margen && a.right>r.left+margen && a.top<r.bottom-margen && a.bottom>r.top+margen;
+            const cercaBorde=Math.min(Math.abs(a.left-r.left),Math.abs(a.right-r.right),Math.abs(a.top-r.top),Math.abs(a.bottom-r.bottom))<13;
+            if(dentro&&cercaBorde){golpeado=true;recibirDanio(5);}
+        }
+    };
+    const id=setInterval(()=>{if(!borde.isConnected){clearInterval(id);return;}revisar();},100);
+}
+
 function comprarAyudanteNormal(id) {
     const a = ayudantes[id];
 
@@ -1470,6 +1799,7 @@ function crearBarraVida(
 function crearEnemigo() {
     if (
         juegoFinalizado ||
+        jefe ||
         !zonaEnemigos ||
         enemigos.length >= MAX_ENEMIGOS ||
         !almaDoradaDesbloqueada ||
@@ -1700,7 +2030,7 @@ function actualizarRobosEnemigos() {
 }
 
 function actualizarEnemigos() {
-    if (juegoFinalizado || !almaDoradaDesbloqueada || jugadorMuerto) return;
+    if (juegoFinalizado || !almaDoradaDesbloqueada || jugadorMuerto || jefe) return;
 
     const now = Date.now();
 
@@ -1733,6 +2063,10 @@ function comprobarAparicionJefe() {
 
 function crearJefe() {
     if (!zonaEnemigos || jefe || jugadorMuerto) return;
+    soporteBossDerrotado = false;
+    // Los enemigos normales desaparecen al comenzar un combate contra jefe.
+    enemigos.forEach(e => e.elemento.remove());
+    enemigos = [];
 
     bossCount++;
 
@@ -2359,7 +2693,9 @@ function actualizarProyectilesJugador() {
         p.elemento.style.position = "fixed";
         p.elemento.style.left = `${x}px`;
         p.elemento.style.top = `${y}px`;
-        p.elemento.style.transform = "translate(-50%, -50%)";
+        p.elemento.style.transform = p.laser
+            ? `translate(-50%, -50%) rotate(${p.angulo}deg)`
+            : "translate(-50%, -50%)";
 
         actualizarEstela(p.estela, x, y, p.x0, p.y0, q);
 
@@ -2373,7 +2709,7 @@ function actualizarProyectilesJugador() {
 
             if (proyectilTocaRect(x, y, radioHit, r)) {
                 p.golpes.add(`e${e.id}`);
-                atacarEnemigo(e, 1);
+                atacarEnemigo(e, multiplicadorDisparoDorado());
             }
         }
 
@@ -2382,7 +2718,16 @@ function actualizarProyectilesJugador() {
 
             if (proyectilTocaRect(x, y, radioHit, r)) {
                 p.golpes.add(`j${jefe.id}`);
-                atacarJefe(1);
+                atacarJefe(multiplicadorDisparoDorado());
+            }
+        }
+        if (soporteBoss && !soporteBoss.derrotado && !p.golpes?.has(`s${soporteBoss.id}`)) {
+            const r = soporteBoss.elemento.getBoundingClientRect();
+            if (proyectilTocaRect(x, y, radioHit, r)) {
+                p.golpes.add(`s${soporteBoss.id}`);
+                soporteBoss.vidaActual=Math.max(0,soporteBoss.vidaActual-multiplicadorDisparoDorado());
+                actualizarVidaEnemigo(soporteBoss);
+                if(soporteBoss.vidaActual<=0){ soporteBoss.derrotado=true; soporteBoss.elemento.remove(); soporteBoss=null; soporteBossDerrotado=true; }
             }
         }
 
@@ -2439,9 +2784,11 @@ function spawnProyectilEnemigo(x0, y0, x1, y1, esJefe, opts = {}) {
         : (esJefe ? 900 : 1300);
     const radio = opts.radio != null ? opts.radio : 12;
 
-    const clases = esJefe
+    const clasesBase = esJefe
         ? "proyectil-enemigo proyectil-jefe"
         : "proyectil-enemigo";
+    const clases = `${clasesBase}${opts.laser ? " proyectil-laser" : ""}`;
+    const angulo = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
     const el = crearElemento("span", clases);
     el.setAttribute("aria-hidden", "true");
 
@@ -2451,7 +2798,7 @@ function spawnProyectilEnemigo(x0, y0, x1, y1, esJefe, opts = {}) {
         position: "fixed",
         left: `${x0}px`,
         top: `${y0}px`,
-        transform: "translate(-50%, -50%)",
+        transform: `translate(-50%, -50%)${opts.laser ? ` rotate(${angulo}deg)` : ""}`,
         pointerEvents: "none",
         zIndex: "15"
     });
@@ -2478,7 +2825,9 @@ function spawnProyectilEnemigo(x0, y0, x1, y1, esJefe, opts = {}) {
         y1,
         danio,
         radio,
-        linea: false,
+        linea: opts.linea === true,
+        laser: opts.laser === true,
+        angulo,
         impactoRegistrado: false
     });
 }
@@ -2584,6 +2933,18 @@ function patronOla(esJefe) {
     mostrarIndicadoresDeTrayectorias(disparos, esJefe, () => disparos.forEach(d=>spawnProyectilEnemigo(d.x0,d.y0,d.x1,d.y1,esJefe,d.opts)), true);
 }
 
+function patronCruz(esJefe) {
+    // Cuatro líneas lentas desde los lados; los huecos entre ellas permiten esquivar.
+    const p=obtenerPosicionAlmaViewport();
+    const ancho=window.innerWidth, alto=window.innerHeight;
+    const y=alto*(0.25+Math.random()*0.35), x=ancho*(0.25+Math.random()*0.5);
+    const ds=[
+        {x0:24,y0:y,x1:ancho-24,y1:y},
+        {x0:x,y0:24,x1:x,y1:alto-24}
+    ];
+    mostrarIndicadoresDeTrayectorias(ds,esJefe,()=>ds.forEach(d=>spawnProyectilEnemigo(d.x0,d.y0,d.x1,d.y1,esJefe,{linea:true,laser:true,danio:esJefe?9:5,duracion:esJefe?1500:1750,radio:esJefe?8:7})));
+}
+
 function patronCombinadoJefe() {
     // Combinaciones más complejas solo para jefes; dificultad progresiva
     const nivel = jefesDerrotadosRun;
@@ -2632,8 +2993,10 @@ function elegirYEjecutarPatron(esJefe) {
             patronRafaga(true);
         } else if (r < 0.76) {
             patronAnillo(true);
-        } else if (r < 0.88) {
+        } else if (r < 0.84) {
             patronOla(true);
+        } else if (r < 0.92) {
+            patronCruz(true);
         } else {
             patronDirigido(true);
         }
@@ -2650,8 +3013,10 @@ function elegirYEjecutarPatron(esJefe) {
         patronRafaga(false);
     } else if (r < 0.78 + Math.min(0.08, nivel * 0.02)) {
         patronOla(false);
-    } else if (r < 0.90 + Math.min(0.05, nivel * 0.015)) {
+    } else if (r < 0.88 + Math.min(0.04, nivel * 0.01)) {
         patronAnillo(false);
+    } else if (r < 0.96) {
+        patronCruz(false);
     } else {
         patronDirigido(false);
     }
@@ -2691,17 +3056,47 @@ function actualizarProyectilesEnemigos() {
         const y = p.y0 + (p.y1 - p.y0) * q;
 
         p.elemento.style.position = "fixed";
-        p.elemento.style.left = `${x}px`;
-        p.elemento.style.top = `${y}px`;
-        p.elemento.style.transform = "translate(-50%, -50%)";
+        if (p.laser) {
+            // El láser cubre toda la trayectoria marcada, en vez de ser un
+            // pequeño proyectil que recorre la línea.
+            p.elemento.style.left = `${p.x0}px`;
+            p.elemento.style.top = `${p.y0}px`;
+            p.elemento.style.setProperty("width", `${Math.hypot(p.x1 - p.x0, p.y1 - p.y0)}px`, "important");
+            p.elemento.style.height = "7px";
+            p.elemento.style.transformOrigin = "0 50%";
+            p.elemento.style.transform = `translateY(-50%) rotate(${p.angulo}deg)`;
+        } else {
+            p.elemento.style.left = `${x}px`;
+            p.elemento.style.top = `${y}px`;
+            p.elemento.style.transform = "translate(-50%, -50%)";
+        }
 
-        actualizarEstela(p.estela, x, y, p.x0, p.y0, q);
+        if (p.estela) {
+            if (p.laser) {
+                p.estela.style.opacity = "0";
+            } else {
+                actualizarEstela(p.estela, x, y, p.x0, p.y0, q);
+            }
+        }
 
-        // Colisión con el corazón real del jugador (no con el centro de la caja)
+        // Los láseres dañan al tocar cualquier parte de la línea completa.
         if (!p.impactoRegistrado && alma) {
             const hr = alma.getBoundingClientRect();
-
-            if (proyectilTocaRect(x, y, p.radio || 12, hr)) {
+            let toca = false;
+            if (p.laser) {
+                const cx = hr.left + hr.width / 2;
+                const cy = hr.top + hr.height / 2;
+                const dx = p.x1 - p.x0;
+                const dy = p.y1 - p.y0;
+                const largo2 = dx * dx + dy * dy || 1;
+                const t = Math.max(0, Math.min(1, ((cx - p.x0) * dx + (cy - p.y0) * dy) / largo2));
+                const px = p.x0 + t * dx;
+                const py = p.y0 + t * dy;
+                toca = Math.hypot(cx - px, cy - py) <= (p.radio || 7) + Math.max(hr.width, hr.height) / 2;
+            } else {
+                toca = proyectilTocaRect(x, y, p.radio || 12, hr);
+            }
+            if (toca) {
                 p.impactoRegistrado = true;
                 p.elemento.remove();
                 if (p.estela) p.estela.remove();
@@ -2760,6 +3155,8 @@ function limpiarCombate() {
     if (jefe) {
         jefe.elemento.remove();
     }
+    if (soporteBoss) { soporteBoss.elemento.remove(); soporteBoss = null; }
+    soporteBossDerrotado = false;
 
     jefe = null;
 }
@@ -2806,6 +3203,9 @@ function morirJugador() {
     for (const d of Object.values(durabilidades)) {
         d.comprada = false;
     }
+    mejoraDisparoDorado.nivel = 0;
+    mejoraExpansion.nivel = 0;
+    actualizarTamanoCuadroBatalla();
 
     for (const a of Object.values(ayudantes)) {
         Object.assign(a, {
@@ -3155,112 +3555,23 @@ function asegurarMejorasClickEnMenu() {
 
 function actualizarBotonesCompra() {
     asegurarMejorasClickEnMenu();
-
     document.querySelectorAll(".comprar-mejora").forEach(b => {
-        const id = Number(b.dataset.mejora);
-        const m = mejoras[id];
-
-        if (!m) return;
-
-        const ok = requisitoCumplido(mejoras, id);
-        const bloque = b.closest(".mejora");
-        const siguiente = Object.keys(mejoras).map(Number).sort((a, c) => a - c)
-            .find(n => !mejoras[n].comprada);
-        if (bloque) bloque.hidden = m.comprada || id !== siguiente;
-
-        b.disabled = m.comprada || !ok || tpTotal < m.coste;
-
-        b.textContent = m.comprada
-            ? `MEJORA ${id} · COMPRADA`
-            : !ok
-                ? `MEJORA ${id} · BLOQUEADA`
-                : `MEJORA ${id} · ${formatear(m.coste)} TP`;
+        const id=Number(b.dataset.mejora), m=mejoras[id]; if(!m)return;
+        const ok=requisitoCumplido(mejoras,id), bloque=b.closest(".mejora");
+        const siguiente=Object.keys(mejoras).map(Number).sort((a,c)=>a-c).find(n=>!mejoras[n].comprada);
+        if(bloque) bloque.hidden=m.comprada||id!==siguiente;
+        b.disabled=m.comprada||!ok||tpTotal<m.coste;
+        b.textContent=m.comprada?`MEJORA ${id} · COMPRADA`:!ok?`MEJORA ${id} · BLOQUEADA`:`MEJORA ${id} · ${formatear(m.coste)} TP`;
     });
-
     document.querySelectorAll(".comprar-durabilidad").forEach(b => {
-        const id = Number(b.dataset.durabilidad);
-        const m = durabilidades[id];
-
-        if (!m) return;
-
-        const ok = requisitoCumplido(durabilidades, id);
-
-        b.disabled = m.comprada || !ok || tpTotal < m.coste;
-
-        b.textContent = m.comprada
-            ? "COMPRADA"
-            : !ok
-                ? "BLOQUEADA"
-                : "COMPRAR";
+        const id=[1,2,3].find(n=>!durabilidades[n].comprada), m=id?durabilidades[id]:null;
+        const bloque=b.closest(".mejora"); if(bloque) bloque.hidden=!id;
+        if(!m){b.disabled=true;b.textContent="TODAS COMPRADAS";return;}
+        b.disabled=tpTotal<m.coste||!requisitoCumplido(durabilidades,id);
+        b.textContent=`DURADERO ${id} · ${formatear(m.coste)} TP`;
+        const info=b.closest(".mejora")?.querySelector(".info-mejora");
+        if(info){info.querySelector(".nombre-mejora").textContent=`Ayudante duradero ${id}`;info.querySelector(".efecto-mejora").textContent=["Despiertos durante 15 s","Despiertos durante 20 s","Nunca duermen"][id-1];info.querySelector(".precio-mejora").textContent=`Coste: ${formatear(m.coste)} TP`;}
     });
-}
-
-function actualizarAyudantes() {
-    document.querySelectorAll(".comprar-ayudante").forEach(b => {
-        const id = Number(b.dataset.ayudante);
-
-        if (!ayudantes[id]) b.hidden = true;
-    });
-
-    for (const id of Object.keys(ayudantes).map(Number)) {
-        const a = ayudantes[id];
-
-        const estado = document.getElementById(
-            `estado-ayudante-${id}`
-        );
-
-        const b = document.querySelector(
-            `.comprar-ayudante[data-ayudante="${id}"]`
-        );
-
-        let s = document.getElementById(`mini-alma-${id}`);
-
-        if (!a.comprada) {
-            if (s) s.remove();
-
-            const ok = requisitoCumplido(ayudantes, id);
-
-            if (b) {
-                b.hidden = false;
-                b.disabled = !ok || clicks < a.coste;
-
-                b.textContent = ok
-                    ? `COMPRAR · ${formatear(a.coste)} clicks`
-                    : "BLOQUEADA";
-            }
-
-            if (estado) {
-                estado.textContent = ok ? "Sin comprar" : "Bloqueada";
-            }
-
-            continue;
-        }
-
-        if (!s) s = crearSpriteAyudante(id);
-
-        if (b) b.hidden = true;
-        if (!s) continue;
-
-        s.classList.toggle("dormida", !a.despierta);
-        s.disabled = false;
-
-        s.title = a.despierta
-            ? `Mini alma ${id}`
-            : "Haz clic para despertar";
-
-        if (estado) {
-            estado.textContent = a.despierta
-                ? "Despierta"
-                : "¡Haz clic para despertar!";
-        }
-    }
-
-    for (let id = 1; id <= obtenerCantidadEspecial(); id++) {
-        crearSpriteEspecial(id);
-    }
-
-    colocarTodosLosAyudantes();
-    actualizarVisibilidadAyudantes();
 }
 
 function actualizarPanelProgresion() {
@@ -3415,6 +3726,102 @@ function actualizarPanelProgresion() {
     }
 }
 
+
+if (botonReset) {
+    botonReset.addEventListener("click", () => {
+        if (!confirm("¿Seguro que quieres reiniciar DELTACLICKER?\n\nPerderás todo el progreso, incluido el desbloqueo del Alma Dorada.")) return;
+        try { localStorage.removeItem(CLAVE_GUARDADO); location.reload(); }
+        catch (e) { console.error(e); alert("No se pudo borrar el guardado."); }
+    });
+}
+
+document.querySelectorAll(".comprar-mejora").forEach(b => {
+    b.addEventListener("click", () => comprarMejoraClick(Number(b.dataset.mejora)));
+});
+
+document.querySelectorAll(".comprar-durabilidad").forEach(b => {
+    b.addEventListener("click", () => {
+        const id = [1, 2, 3].find(n => !durabilidades[n].comprada);
+        if (!id) return;
+        const m = durabilidades[id];
+        if (tpTotal < m.coste || !requisitoCumplido(durabilidades, id)) return;
+        tpTotal -= m.coste;
+        m.comprada = true;
+        if (id === 3) for (const a of Object.values(ayudantes)) { a.despierta = true; a.tiempoRestante = 0; a.inicioDespierta = Date.now(); }
+        actualizarInterfaz();
+        guardarProgreso();
+    });
+});
+
+function actualizarAyudantes() {
+    document.querySelectorAll(".comprar-ayudante").forEach(b => {
+        const id = Number(b.dataset.ayudante);
+
+        if (!ayudantes[id]) b.hidden = true;
+    });
+
+    for (const id of Object.keys(ayudantes).map(Number)) {
+        const a = ayudantes[id];
+
+        const estado = document.getElementById(
+            `estado-ayudante-${id}`
+        );
+
+        const b = document.querySelector(
+            `.comprar-ayudante[data-ayudante="${id}"]`
+        );
+
+        let s = document.getElementById(`mini-alma-${id}`);
+
+        if (!a.comprada) {
+            if (s) s.remove();
+
+            const ok = requisitoCumplido(ayudantes, id);
+
+            if (b) {
+                b.hidden = false;
+                b.disabled = !ok || clicks < a.coste;
+
+                b.textContent = ok
+                    ? `COMPRAR · ${formatear(a.coste)} clicks`
+                    : "BLOQUEADA";
+            }
+
+            if (estado) {
+                estado.textContent = ok ? "Sin comprar" : "Bloqueada";
+            }
+
+            continue;
+        }
+
+        if (!s) s = crearSpriteAyudante(id);
+
+        if (b) b.hidden = true;
+        if (!s) continue;
+
+        s.classList.toggle("dormida", !a.despierta);
+        s.disabled = false;
+
+        s.title = a.despierta
+            ? `Mini alma ${id}`
+            : "Haz clic para despertar";
+
+        if (estado) {
+            estado.textContent = a.despierta
+                ? "Despierta"
+                : "¡Haz clic para despertar!";
+        }
+    }
+
+    for (let id = 1; id <= obtenerCantidadEspecial(); id++) {
+        crearSpriteEspecial(id);
+    }
+
+    colocarTodosLosAyudantes();
+    actualizarVisibilidadAyudantes();
+}
+
+
 function actualizarInterfaz() {
     if (contador) {
         contador.textContent = formatear(clicks);
@@ -3439,66 +3846,29 @@ function actualizarInterfaz() {
     actualizarBarraVida();
     colocarVidaDebajoCaja();
 
+
+    const bd=document.getElementById("mejora-disparo-dorado");
+    if(bd){const n=mejoraDisparoDorado.nivel;bd.disabled=n>=mejoraDisparoDorado.precios.length||tpTotal<mejoraDisparoDorado.precios[n];bd.textContent=n>=mejoraDisparoDorado.precios.length?"Disparo dorado · DAÑO ×3 (MÁX.)":`Disparo dorado · Daño ×${multiplicadorDisparoDorado().toFixed(1)} → ×${(multiplicadorDisparoDorado()+0.4).toFixed(1)} · ${formatear(mejoraDisparoDorado.precios[n])} TP`;}
+    const be=document.getElementById("mejora-expansion-cuadro");
+    if(be){const n=mejoraExpansion.nivel;be.disabled=n>=mejoraExpansion.precios.length||tpTotal<mejoraExpansion.precios[n];be.textContent=n>=mejoraExpansion.precios.length?"Cuadro de batalla · +50% (MÁX.)":`Expandir cuadro · +${n*10}% → +${(n+1)*10}% · ${formatear(mejoraExpansion.precios[n])} TP`;}
+    for (let i = 0; i < 4; i++) {
+        const el = document.getElementById(`comprar-ayudante-electrico-${i}`);
+        if (el) {
+            const comprado = ayudantesElectricosComprados[i];
+            el.disabled = comprado || clicks < 5000;
+            const esquinas = ["superior izquierda", "superior derecha", "inferior izquierda", "inferior derecha"];
+            el.textContent = comprado
+                ? `Ayudante eléctrico ${i + 1} · esquina ${esquinas[i]} · COMPRADO`
+                : `Desbloquear ayudante ${i + 1} · esquina ${esquinas[i]} · 5.000 clicks`;
+        }
+    }
+    const ap=document.getElementById("comprar-ayudante-apoyo");if(ap){ap.disabled=ayudanteApoyoComprado||clicks<10000;ap.textContent=ayudanteApoyoComprado?"Ayudante de apoyo · COMPRADO":"Ayudante de apoyo · 10.000 clicks";}
+
     actualizarBotonesCompra();
     actualizarAyudantes();
     actualizarPanelProgresion();
 }
 
-// Eventos
-if (botonReset) {
-    botonReset.addEventListener("click", () => {
-        if (!confirm(
-            "¿Seguro que quieres reiniciar DELTACLICKER?\n\n" +
-            "Perderás todo el progreso, incluido el desbloqueo del Alma Dorada."
-        )) {
-            return;
-        }
-
-        try {
-            localStorage.removeItem(CLAVE_GUARDADO);
-            location.reload();
-        } catch (e) {
-            console.error(e);
-            alert("No se pudo borrar el guardado.");
-        }
-    });
-}
-
-document.querySelectorAll(".comprar-mejora").forEach(b => {
-    b.addEventListener("click", () => {
-        comprarMejoraClick(Number(b.dataset.mejora));
-    });
-});
-
-document.querySelectorAll(".comprar-durabilidad").forEach(b => {
-    b.addEventListener("click", () => {
-        const id = Number(b.dataset.durabilidad);
-        const m = durabilidades[id];
-
-        if (
-            !m ||
-            m.comprada ||
-            !requisitoCumplido(durabilidades, id) ||
-            tpTotal < m.coste
-        ) {
-            return;
-        }
-
-        tpTotal -= m.coste;
-        m.comprada = true;
-
-        if (id === 3) {
-            for (const a of Object.values(ayudantes)) {
-                a.despierta = true;
-                a.tiempoRestante = 0;
-                a.inicioDespierta = Date.now();
-            }
-        }
-
-        actualizarInterfaz();
-        guardarProgreso();
-    });
-});
 
 document.querySelectorAll(".comprar-ayudante").forEach(b => {
     b.addEventListener("click", () => {
@@ -3707,6 +4077,9 @@ if (boton) {
 
 actualizarVisibilidadAyudantes();
 colocarTodosLosAyudantes();
+if (ayudantesElectricosComprados.some(Boolean)) crearSpriteAyudanteElectrico();
+if (ayudanteApoyoComprado) crearSpriteAyudanteApoyo();
+actualizarTamanoCuadroBatalla();
 colocarBotonesJuntos();
 mantenerJugadorEnZona();
 actualizarInterfaz();
@@ -3744,6 +4117,9 @@ setInterval(() => {
     actualizarEnemigos();
     actualizarJefe();
     actualizarOrbitaEnemigos();
+    actualizarEnemigoApoyo();
+    actualizarAyudanteElectrico();
+    actualizarAyudanteApoyo();
 }, 100);
 
 setInterval(() => {
@@ -3751,7 +4127,7 @@ setInterval(() => {
         almaDoradaDesbloqueada &&
         !jugadorMuerto &&
         Date.now() - ultimoDisparoEnemigo >= intervaloDisparoEnemigoActual() &&
-        enemigos.length > 0
+        !jefe && enemigos.length > 0
     ) {
         ultimoDisparoEnemigo = Date.now();
         dispararContraJugador(false);
