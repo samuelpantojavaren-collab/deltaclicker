@@ -120,8 +120,8 @@ body::before {
    ========================================== */
 
 #boton-click {
-    width: 240px;
-    height: 240px;
+    width: var(--tamano-cuadro-batalla, 240px);
+    height: var(--tamano-cuadro-batalla, 240px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -280,23 +280,6 @@ body::before {
 .alma.parry-activo {
     filter: drop-shadow(0 0 7px #ffffff) drop-shadow(0 0 16px #6beaff) drop-shadow(0 0 28px #ffffff);
     animation: brillo-parry 0.35s ease-in-out infinite alternate;
-}
-
-body.parry-activo::after {
-    content: "PARRY ACTIVO · INMUNIDAD";
-    position: fixed;
-    top: 135px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 30;
-    padding: 10px 12px;
-    color: #bff8ff;
-    background: #00151dcc;
-    border: 1px solid #6beaff;
-    box-shadow: 0 0 16px #36dfff88;
-    font-size: 9px;
-    text-align: center;
-    pointer-events: none;
 }
 
 @keyframes brillo-parry {
@@ -733,7 +716,9 @@ body.parry-activo::after {
     inset: 0;
     overflow: hidden;
     pointer-events: none;
-    z-index: 4;
+    z-index: 7;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .alma-enemiga {
@@ -756,7 +741,9 @@ body.parry-activo::after {
     appearance: none;
     -webkit-appearance: none;
     transform: translate(-50%, -50%);
-    z-index: 5;
+    z-index: 8;
+    visibility: visible !important;
+    opacity: 1 !important;
     user-select: none;
 }
 
@@ -1006,9 +993,11 @@ body.parry-activo::after {
 }
 
 /* ==========================================
-   PROYECTILES — cuadrados de energía neón
-   Inspirados en el brillo de las almas; sin bordes ni estelas.
+   PROYECTILES — Rombos neón estilo Deltarune
+   Todos los proyectiles: rombo 16×16, núcleo intenso,
+   borde luminoso y brillo exterior. Solo cambia el color.
    ========================================== */
+
 .mini-alma-proyectil,
 .proyectil-enemigo,
 .proyectil-especial,
@@ -1016,59 +1005,132 @@ body.parry-activo::after {
 .proyectil-enemigo-jugador,
 .proyectil-bala-deltarune {
     position: absolute;
-    top: 0; left: 0;
-    width: 12px !important; height: 12px !important;
-    min-width: 12px !important; min-height: 12px !important;
-    box-sizing: border-box;
-    pointer-events: none; z-index: 15;
-    border: 0 !important; outline: 0 !important;
+    top: 0;
+    left: 0;
+    width: 12px !important;
+    height: 12px !important;
+    min-width: 12px !important;
+    min-height: 12px !important;
+    pointer-events: none;
+    z-index: 15;
     border-radius: 0 !important;
-    clip-path: none !important;
-    background: var(--proy-glow, #ffd700) !important;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important;
+    border: 2px solid var(--proy-borde, #ffffff) !important;
+    background: var(--proy-nucleo, #ffffff) !important;
     box-shadow:
-        0 0 5px 2px var(--proy-glow, #ffd700),
-        0 0 12px 5px var(--proy-glow, #ffd700),
-        0 0 24px 8px color-mix(in srgb, var(--proy-glow, #ffd700) 72%, transparent) !important;
+        0 0 3px #ffffff,
+        0 0 7px var(--proy-glow, #ffffff),
+        0 0 15px var(--proy-glow, #ffffff),
+        0 0 25px color-mix(in srgb, var(--proy-glow, #ffffff) 72%, transparent) !important;
     filter: none !important;
-    animation: none !important; opacity: 1 !important;
-    image-rendering: pixelated; transform-origin: center;
+    animation: none !important;
+    opacity: 1 !important;
+    image-rendering: pixelated;
+    transform-origin: center center;
 }
 
-/* El cuadrado es una sola pieza de luz: nada de núcleo, borde o estrella. */
-.mini-alma-proyectil::before, .proyectil-enemigo::before,
-.proyectil-especial::before, .proyectil-jugador::before,
-.proyectil-enemigo-jugador::before, .proyectil-bala-deltarune::before,
-.mini-alma-proyectil::after, .proyectil-enemigo::after,
-.proyectil-especial::after, .proyectil-jugador::after,
-.proyectil-enemigo-jugador::after, .proyectil-bala-deltarune::after {
-    content: none !important; display: none !important;
-}
-.proyectil-estela { display: none !important; }
-
-/* Colores y halo amplios, como los de las almas del juego. */
-.proyectil-jugador, .proyectil-jugador.proyectil-bala-deltarune {
-    --proy-glow: #ffd700;
-}
-.proyectil-enemigo { --proy-glow: #ff3333; }
-.proyectil-enemigo.proyectil-jefe {
-    --proy-glow: #ff8800;
-    width: 12px !important; height: 12px !important;
-    min-width: 12px !important; min-height: 12px !important;
-}
-.proyectil-enemigo.abismal { --proy-glow: #ff3030; }
-.mini-alma-proyectil, .proyectil-enemigo-jugador { --proy-glow: #ff0000; }
-.proyectil-especial { --proy-glow: #00ffff; }
-.proyectil-enemigo-jugador.dorado { --proy-glow: #b000ff; }
-
-/* Los ataques lineales usan el mismo cuadrado, no una barra alargada. */
-.proyectil-linea, .proyectil-jugador.proyectil-linea,
-.proyectil-enemigo.proyectil-linea, .proyectil-enemigo.proyectil-jefe.proyectil-linea {
-    width: 12px !important; height: 12px !important;
-    min-width: 12px !important; min-height: 12px !important;
-    border: 0 !important; border-radius: 0 !important;
+/* Estela alargada detrás del rombo — color del proyectil, se desvanece */
+.proyectil-estela {
+    position: absolute;
+    pointer-events: none;
+    z-index: 14;
+    width: 34px;
+    height: 10px;
+    border-radius: 4px;
+    background: linear-gradient(
+        90deg,
+        var(--proy-glow, #ffffff) 0%,
+        color-mix(in srgb, var(--proy-glow, #ffffff) 40%, transparent) 55%,
+        transparent 100%
+    );
+    box-shadow:
+        0 0 7px var(--proy-glow, #ffffff),
+        0 0 15px color-mix(in srgb, var(--proy-glow, #ffffff) 65%, transparent);
+    opacity: 0.92;
+    transform-origin: 100% 50%;
     clip-path: none !important;
-    background: var(--proy-glow, #fff) !important;
-    box-shadow: 0 0 5px 2px var(--proy-glow, #fff), 0 0 12px 5px var(--proy-glow, #fff), 0 0 24px 8px color-mix(in srgb, var(--proy-glow, #fff) 72%, transparent) !important;
+    border: none !important;
+    filter: none !important;
+    animation: none !important;
+}
+
+/* --- Colores por tipo (solo varían --proy-*) --- */
+
+/* Alma Dorada (jugador) */
+.proyectil-jugador,
+.proyectil-jugador.proyectil-bala-deltarune {
+    --proy-nucleo: #ffffff;
+    --proy-borde: #FFD000;
+    --proy-glow: #FFB800;
+}
+
+/* Enemigos normales */
+.proyectil-enemigo {
+    --proy-nucleo: #ffffff;
+    --proy-borde: #00FF99;
+    --proy-glow: #00FF66;
+}
+
+/* Jefe */
+.proyectil-enemigo.proyectil-jefe {
+    --proy-nucleo: #ffffff;
+    --proy-borde: #FF8800;
+    --proy-glow: #FF5E00;
+}
+
+/* Abismal (rojo intenso) */
+.proyectil-enemigo.abismal {
+    --proy-nucleo: #ffffff;
+    --proy-borde: #FF1744;
+    --proy-glow: #FF003C;
+}
+
+/* Ayudante rojo (mini-alma) */
+.mini-alma-proyectil {
+    --proy-nucleo: #ffffff;
+    --proy-borde: #FF1744;
+    --proy-glow: #FF003C;
+}
+
+
+/* Ayudante especial (cian) */
+.proyectil-especial {
+    --proy-nucleo: #ffffff;
+    --proy-borde: #00E5FF;
+    --proy-glow: #00BFFF;
+}
+
+/* Enemigo → jugador (rojo) */
+.proyectil-enemigo-jugador {
+    --proy-nucleo: #ffffff;
+    --proy-borde: #FF1744;
+    --proy-glow: #FF003C;
+}
+
+.proyectil-enemigo-jugador.dorado {
+    --proy-nucleo: #ffffff;
+    --proy-borde: #C000FF;
+    --proy-glow: #A000FF;
+}
+
+/* Anular estilos de línea antiguos: ahora todo es rombo puntual */
+.proyectil-linea,
+.proyectil-jugador.proyectil-linea,
+.proyectil-enemigo.proyectil-linea,
+.proyectil-enemigo.proyectil-jefe.proyectil-linea {
+    width: 12px !important;
+    height: 12px !important;
+    min-width: 12px !important;
+    min-height: 12px !important;
+    border-radius: 0 !important;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important;
+    border: 2px solid var(--proy-borde, #ffffff) !important;
+    background: var(--proy-nucleo, #ffffff) !important;
+    box-shadow:
+        0 0 3px #ffffff,
+        0 0 7px var(--proy-glow, #ffffff),
+        0 0 15px var(--proy-glow, #ffffff),
+        0 0 25px color-mix(in srgb, var(--proy-glow, #ffffff) 72%, transparent) !important;
     transform-origin: center center !important;
     animation: none !important;
 }
@@ -2048,242 +2110,157 @@ button:focus-visible {
 }
 
 
-/* Temporizador y cooldown del Parry */
+/* Pequeña cuenta atrás de recarga del Parry, debajo del alma */
 #temporizador-parry {
-    position: fixed;
-    bottom: 18px;
-    left: calc(50% + 135px);
+    position: absolute;
+    display: none;
     transform: translateX(-50%);
-    z-index: 25;
-    padding: 10px 14px;
-    border: 2px dashed #ff3333;
-    background: rgba(20, 0, 0, 0.94);
-    color: #ff5555;
-    font-size: 10px;
-    line-height: 1.5;
+    z-index: 12;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    color: #ff2020;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
     text-align: center;
     white-space: nowrap;
     pointer-events: none;
-    text-shadow: 0 0 8px currentColor;
+    text-shadow: 0 0 4px #ff0000, 0 0 9px #ff0000, 0 0 14px #ff3333;
 }
-#temporizador-parry.parry-recarga { color: #ff7777; border-color: #ff3333; }
-#temporizador-parry.parry-en-uso { color: #bff8ff; border-color: #6beaff; }
-#temporizador-parry.parry-listo { color: #55ff88; border-color: #35ff8a; }
-@media (max-width: 600px) {
-    #temporizador-parry { left: calc(50% + 65px); bottom: 10px; font-size: 8px; padding: 8px 10px; }
-}
-
-/* Ajuste final de personalidad: núcleo blanco neón y rojo enemigo consistente. */
-.mini-alma-proyectil::before,
-.proyectil-enemigo::before,
-.proyectil-especial::before,
-.proyectil-jugador::before,
-.proyectil-enemigo-jugador::before,
-.proyectil-bala-deltarune::before {
-    content: "" !important;
-    display: block !important;
-    position: absolute !important;
-    width: 5px !important;
-    height: 5px !important;
-    left: 50% !important;
-    top: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: #ffffff !important;
-    box-shadow: 0 0 4px 2px #ffffff, 0 0 9px 3px #ffffffcc !important;
-    pointer-events: none !important;
-}
-/* Los proyectiles enemigos normales y abismales usan rojo neón puro, nunca coral. */
-.proyectil-enemigo,
-.proyectil-enemigo.abismal,
-.proyectil-enemigo.proyectil-jefe {
-    --proy-glow: #ff0000 !important;
-    background: #ff0000 !important;
-}
-
-    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.65); }
-}
+#temporizador-parry[hidden] { display: none !important; }
+#temporizador-parry.parry-recarga { display: block; color: #ff2020; }
 
 
-/* Deltaclicker: nuevos ayudantes y ataques */
-.ayudante-electrico {
-    position: fixed !important;
-    display: block;
-    width: 22px !important;
-    height: 22px !important;
-    box-sizing: border-box;
-    background: #36c5e8 !important;
-    border: 2px solid #b7f5ff !important;
-    box-shadow: 0 0 8px #36c5e8, 0 0 18px #1685b7 !important;
-    z-index: 10001 !important;
+/* DELTACLICKER 2.3 — aviso de oleadas */
+.aviso-oleadas {
+    position: absolute;
+    z-index: 20;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 90%;
+    padding: 7px 12px;
+    border: 1px solid #ff4545;
+    background: rgba(8, 8, 12, 0.88);
+    color: #ff6868;
+    font: 700 12px/1.25 monospace;
+    letter-spacing: 1px;
+    text-align: center;
     pointer-events: none;
-    transform: translate(-50%, -50%) rotate(45deg) !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-.ayudante-electrico-centro {
-    position: absolute !important;
-    display: block !important;
-    width: 9px !important;
-    height: 9px !important;
-    left: 50% !important;
-    top: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    background: #e8fcff !important;
-    border: 1px solid #ffffff !important;
-    box-shadow: 0 0 5px #ffffff, 0 0 9px #9af0ff !important;
-}
-.rayo-ayudante-electrico {
-    position: fixed; height: 4px; transform-origin: 0 50%; z-index: 9999;
-    pointer-events: none; display: none; border-radius: 3px;
-    background: #9af0ff;
-    box-shadow: 0 0 4px #ffffff, 0 0 8px #43c9ed, 0 0 15px #1685b7;
-    opacity: .95;
-}
-.ataque-bordeado {
-    position: fixed; box-sizing: border-box; z-index: 9998; pointer-events: none;
-    border: 5px solid #ff526d; box-shadow: 0 0 8px #ff526d, inset 0 0 8px #ff526d;
-    animation: bordeado-parpadeo .35s ease-in-out infinite alternate;
-}
-@keyframes bordeado-parpadeo { from { opacity: .65; } to { opacity: 1; } }
-.alma-apoyo { filter: hue-rotate(120deg); }
-#mejoras-deltaclicker { display: grid; gap: 8px; margin: 10px 0; }
-#mejoras-deltaclicker button { width: 100%; }
-
-.ayudante-apoyo {
-    position: absolute; width: 22px; height: 22px; border-radius: 50% 50% 50% 0;
-    background: #78e6a2; border: 2px solid #d0ffe0; transform: translate(-50%, -50%) rotate(-45deg);
-    box-shadow: 0 0 8px #78e6a2, 0 0 18px #319b63; z-index: 12; pointer-events: none;
+    white-space: nowrap;
+    text-shadow: 0 0 7px rgba(255, 50, 50, 0.35);
 }
 
-.ataque-bordeado.bordeado-aviso { border-color: #ffb45c; box-shadow: 0 0 6px #ffb45c; opacity: .45; animation: bordeado-aviso .25s ease-in-out infinite alternate; }
-.ataque-bordeado.bordeado-activo { border-color: #ff526d; box-shadow: 0 0 8px #ff526d, inset 0 0 8px #ff526d; }
-@keyframes bordeado-aviso { from { opacity: .35; } to { opacity: .8; } }
+/* Corrección de visibilidad de enemigos en DELTACLICKER 2.3 */
+#zona-enemigos > .alma-enemiga { display: flex !important; visibility: visible !important; opacity: 1 !important; }
+#zona-enemigos > .alma-enemiga .alma-enemiga-forma { display: block !important; visibility: visible !important; opacity: 1 !important; }
 
-/* El ataque en cruz dispara segmentos láser visibles; la lluvia conserva sus proyectiles actuales. */
-.proyectil-enemigo.proyectil-laser {
-    width: auto !important; /* el ancho real lo fija JavaScript a toda la trayectoria */
-    min-width: 0 !important;
-    height: 7px !important;
-    min-height: 7px !important;
-    border: 0 !important;
-    border-radius: 3px !important;
-    background: linear-gradient(180deg, #ffd7d7 0%, #ff3030 35%, #ff0000 70%, #ffb0b0 100%) !important;
-    box-shadow: 0 0 4px 2px #ff3030, 0 0 10px 4px #ff0000, 0 0 22px 6px #ff000088 !important;
-    transform-origin: 0 50% !important;
-}
-.proyectil-enemigo.proyectil-jefe.proyectil-laser {
-    background: linear-gradient(180deg, #fff0d8 0%, #ff9b45 35%, #ff6500 70%, #ffd0a0 100%) !important;
-    box-shadow: 0 0 4px 2px #ff9b45, 0 0 10px 4px #ff6500, 0 0 22px 6px #ff650088 !important;
+/* Modo extremo: botón fijo inmediatamente debajo de RESET. */
+#boton-modo-extremo {
+    position: fixed;
+    top: 62px;
+    right: 20px;
+    z-index: 20;
+    padding: 10px 12px;
+    background: #180000;
+    border: 2px solid var(--rojo);
+    color: var(--rojo);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
 }
 
-/* Cuatro compras independientes: una para cada ayudante eléctrico. */
-#mejoras-ayudantes-electricos { display: grid; grid-template-columns: 1fr; gap: 7px; margin: 8px 0; }
-#mejoras-ayudantes-electricos button { width: 100%; }
+#boton-modo-extremo:hover {
+    background: #4a0000;
+    box-shadow: 0 0 12px #ff000088;
+}
 
-/* Deltaclicker 1.4.4: capa fija y sprites eléctricos visibles sobre el juego. */
-#capa-ayudantes-electricos {
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    overflow: visible !important;
-    pointer-events: none !important;
-    z-index: 100000 !important;
+#boton-modo-extremo:active {
+    background: #770000;
 }
-#capa-ayudantes-electricos .rayo-ayudante-electrico {
-    position: fixed !important;
-    z-index: 1 !important;
+
+@media (max-width: 600px) {
+    #boton-modo-extremo {
+        top: 55px;
+        right: 12px;
+        padding: 8px 9px;
+        font-size: 6px;
+    }
 }
-#capa-ayudantes-electricos .ayudante-electrico {
-    /* Mismo lenguaje visual que los ayudantes normales, con marco en rombo. */
-    position: fixed !important;
-    display: block !important;
-    width: 22px !important;
-    height: 22px !important;
-    padding: 0 !important;
-    border: 2px solid #42d8ff !important;
+
+/* Proyectiles DELTACLICKER: marco neón de color y núcleo cuadrado blanco */
+.mini-alma-proyectil,
+.proyectil-enemigo,
+.proyectil-especial,
+.proyectil-jugador,
+.proyectil-enemigo-jugador,
+.proyectil-bala-deltarune {
+    box-sizing: border-box !important;
     border-radius: 0 !important;
-    background: #100624 !important;
     clip-path: none !important;
-    box-shadow: 0 0 8px #42d8ff, 0 0 18px #1685b7 !important;
-    filter: drop-shadow(0 0 5px #00cfff) drop-shadow(0 0 12px #1685b7) !important;
-    transform: translate(-50%, -50%) rotate(45deg) !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    z-index: 2 !important;
-}
-#capa-ayudantes-electricos .ayudante-electrico-centro {
-    position: absolute !important;
-    display: block !important;
-    left: 50% !important;
-    top: 50% !important;
-    width: 10px !important;
-    height: 10px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 2px solid #42d8ff !important;
-    border-radius: 0 !important;
-    background: #100624 !important;
-    clip-path: none !important;
-    box-shadow: 0 0 6px #42d8ff, 0 0 12px #1685b7 !important;
-    transform: translate(-50%, -50%) rotate(0deg) !important;
-}
-#capa-ayudantes-electricos .ayudante-electrico-centro::after {
-    content: "" !important;
-    position: absolute !important;
-    width: 8px !important;
-    height: 8px !important;
-    left: 50% !important;
-    top: 50% !important;
-    background: #e8fcff !important;
-    transform: translate(-50%, -50%) rotate(45deg) !important;
-    box-shadow: 0 0 5px #ffffff, 0 0 9px #9af0ff !important;
-}
-#mejoras-ayudantes-electricos {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-    gap: 8px !important;
-    margin-top: 10px !important;
-}
-#mejoras-ayudantes-electricos .compra-ayudante-electrico {
-    display: block !important;
-    width: 100% !important;
-    min-height: 42px !important;
-    white-space: normal !important;
-    text-align: left !important;
+    background: transparent !important;
+    border: 2px solid var(--proy-borde, var(--proy-glow, #ffffff)) !important;
+    box-shadow:
+        0 0 4px var(--proy-glow, #ffffff),
+        0 0 10px var(--proy-glow, #ffffff),
+        0 0 18px var(--proy-glow, #ffffff),
+        inset 0 0 3px var(--proy-glow, #ffffff) !important;
 }
 
-/* Alma verde: giro continuo y suave del cuadrado mientras está activa. */
-#boton-click.modo-verde {
-    animation: giro-cuadrado-verde 7s linear infinite;
-}
-@keyframes giro-cuadrado-verde {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-/* Deltaclicker 1.4.8: el ayudante usa la misma forma CSS que el alma del jugador. */
-.ayudante-apoyo.alma {
-    position: absolute !important;
-    width: 22px !important;
-    height: 22px !important;
+.mini-alma-proyectil::after,
+.proyectil-enemigo::after,
+.proyectil-especial::after,
+.proyectil-jugador::after,
+.proyectil-enemigo-jugador::after,
+.proyectil-bala-deltarune::after {
+    content: "";
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ffffff !important;
     border: 0 !important;
     border-radius: 0 !important;
-    background: #aaff00 !important;
-    transform: translate(-50%, -50%) rotate(45deg) !important;
-    filter: drop-shadow(0 0 4px #aaff00) drop-shadow(0 0 9px #aaff00) drop-shadow(0 0 16px #78ff00) !important;
     clip-path: none !important;
+    box-shadow:
+        0 0 3px #ffffff,
+        0 0 7px #ffffff,
+        0 0 12px #ffffff !important;
+    pointer-events: none;
 }
-.ayudante-apoyo.alma::before,
-.ayudante-apoyo.alma::after {
-    content: "" !important;
-    position: absolute !important;
-    width: 22px !important;
-    height: 22px !important;
-    background: #aaff00 !important;
-    border: 0 !important;
+
+.proyectil-linea,
+.proyectil-jugador.proyectil-linea,
+.proyectil-enemigo.proyectil-linea,
+.proyectil-enemigo.proyectil-jefe.proyectil-linea {
+    clip-path: none !important;
+    background: transparent !important;
 }
-.ayudante-apoyo.alma::before { top: -11px !important; left: 0 !important; }
-.ayudante-apoyo.alma::after { left: -11px !important; top: 0 !important; }
+
+/* Jumpscare a pantalla completa al pulsar Enter: aparece instantáneamente. */
+.mensaje-enter-no {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    color: #ff1010;
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(120px, 48vw, 900px);
+    line-height: 1;
+    font-weight: 900;
+    text-align: center;
+    white-space: nowrap;
+    text-shadow: 0 0 10px #ff0000, 0 0 28px #ff0000, 0 0 60px #ff2020;
+    pointer-events: none;
+    user-select: none;
+    animation: none !important;
+    transition: none !important;
+}
