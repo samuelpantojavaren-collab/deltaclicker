@@ -5,7 +5,7 @@
 }
 
 :root {
-    --rojo: #ff3333;
+    --rojo: #ff0000;
     --rojo-brillo: #ff0000;
     --verde: #00ff00;
     --amarillo: #ffff00;
@@ -1225,7 +1225,7 @@ body::before {
     width: min(300px, calc(100vw - 40px));
     padding: 10px;
     background: rgba(0, 0, 0, 0.8);
-    border: 1px solid #ff333388;
+    border: 1px solid #ff000088;
     color: white;
     font-size: 8px;
     line-height: 1.8;
@@ -1244,7 +1244,7 @@ body::before {
     margin: 6px 0;
     padding: 1px;
     overflow: hidden;
-    border: 1px solid #ff3333;
+    border: 1px solid #ff0000;
     background: #210707;
     box-shadow: 0 0 7px #ff000044;
 }
@@ -1322,7 +1322,7 @@ body::before {
     max-width: 100%;
     padding: 9px 8px;
     background: #160707;
-    border: 1px solid #ff3333;
+    border: 1px solid #ff0000;
     color: #ff7777;
     font-family: 'Press Start 2P', monospace;
     font-size: 7px;
@@ -2127,7 +2127,7 @@ button:focus-visible {
     text-align: center;
     white-space: nowrap;
     pointer-events: none;
-    text-shadow: 0 0 4px #ff0000, 0 0 9px #ff0000, 0 0 14px #ff3333;
+    text-shadow: 0 0 4px #ff0000, 0 0 9px #ff0000, 0 0 14px #ff0000;
 }
 #temporizador-parry[hidden] { display: none !important; }
 #temporizador-parry.parry-recarga { display: block; color: #ff2020; }
@@ -2264,3 +2264,537 @@ button:focus-visible {
     animation: none !important;
     transition: none !important;
 }
+
+
+/* Entrada sutil del siguiente nivel de una mejora encadenada. */
+.mejora-encadenada-aparece {
+    animation: mejora-encadenada-aparecer 180ms ease-out;
+}
+@keyframes mejora-encadenada-aparecer {
+    from { opacity: .35; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* Botón de la mejora final: conserva la estética neon del resto del juego. */
+.mejora-final {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px 16px;
+    color: #fff;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-shadow: 0 0 6px currentColor, 0 0 12px currentColor;
+    background: linear-gradient(135deg, rgba(35, 12, 65, .96), rgba(10, 25, 55, .96));
+    border: 1px solid #d18cff;
+    border-radius: 9px;
+    box-shadow: 0 0 8px rgba(190, 100, 255, .65), inset 0 0 10px rgba(150, 80, 255, .2);
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.mejora-final:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.2);
+    box-shadow: 0 0 12px rgba(190, 100, 255, .9), 0 0 24px rgba(120, 80, 255, .45);
+}
+.mejora-final:disabled {
+    opacity: .55;
+    filter: saturate(.65);
+    cursor: not-allowed;
+}
+
+/* =========================================================
+   ESTÉTICA DELTA ROOM PARA TODOS LOS MENÚS Y MEJORAS
+   Negro puro, borde verde del cuadro de batalla y texto rojo.
+   ========================================================= */
+:root {
+    --menu-fondo: #000000;
+    --menu-borde: #00ff00;
+    --menu-texto: #ff5555;
+}
+
+#lista-mejoras,
+#lista-ayudantes,
+#panel-progresion,
+#panel-almas {
+    background: #000 !important;
+    color: var(--menu-texto) !important;
+    border: 2px solid var(--menu-borde) !important;
+    border-radius: 2px !important;
+    box-shadow: 0 0 6px #00ff0066, 0 0 15px #00ff0033, inset 0 0 12px #00ff0012 !important;
+    scrollbar-color: var(--menu-borde) #000;
+}
+
+#lista-mejoras *,
+#lista-ayudantes *,
+#panel-progresion *,
+#panel-almas * {
+    color: var(--menu-texto);
+}
+
+#lista-mejoras .mejora,
+#lista-ayudantes .ayudante,
+#lista-esencia > div,
+#lista-especial > div,
+#compras-almas > div,
+#mejoras-alma > div {
+    background: #000 !important;
+    border: 1px solid #00b900 !important;
+    border-radius: 2px !important;
+    box-shadow: inset 0 0 8px #00ff0010 !important;
+    color: var(--menu-texto) !important;
+}
+
+#lista-mejoras .nombre-mejora,
+#lista-ayudantes .nombre-mejora,
+#panel-progresion h2,
+#panel-progresion h3,
+#panel-almas h2,
+#panel-almas h3,
+.separador-menu {
+    color: #ff5555 !important;
+    text-shadow: 0 0 5px #ff222255 !important;
+}
+
+#lista-mejoras .efecto-mejora,
+#lista-mejoras .precio-mejora,
+#lista-ayudantes .efecto-mejora,
+#lista-ayudantes .estado-ayudante,
+#panel-progresion p,
+#panel-almas p,
+#panel-progresion strong {
+    color: #ff7777 !important;
+}
+
+#lista-mejoras button,
+#lista-ayudantes button,
+#panel-progresion button,
+#panel-almas button,
+#mejora-tp-ayudantes,
+#mejora-tamano-caja,
+#mejora-vida,
+#mejora-defensa,
+#comprar-parry,
+#comprar-el-destello {
+    background: #000 !important;
+    color: #ff5555 !important;
+    border: 1px solid #00ff00 !important;
+    border-radius: 2px !important;
+    box-shadow: 0 0 5px #00ff0055, inset 0 0 7px #00ff0018 !important;
+    text-shadow: 0 0 5px #ff222277 !important;
+}
+
+#lista-mejoras button:hover:not(:disabled),
+#lista-ayudantes button:hover:not(:disabled),
+#panel-progresion button:hover:not(:disabled),
+#panel-almas button:hover:not(:disabled),
+#mejora-tp-ayudantes:hover:not(:disabled) {
+    background: #061306 !important;
+    color: #ff8888 !important;
+    border-color: #55ff55 !important;
+    box-shadow: 0 0 8px #00ff00aa, inset 0 0 9px #00ff0033 !important;
+}
+
+#lista-mejoras button:disabled,
+#lista-ayudantes button:disabled,
+#panel-progresion button:disabled,
+#panel-almas button:disabled,
+#mejora-tp-ayudantes:disabled {
+    background: #000 !important;
+    color: #874444 !important;
+    border-color: #285528 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+#mejora-tp-ayudantes {
+    display: block;
+    width: 100%;
+    margin: 8px 0;
+    padding: 10px 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    line-height: 1.8;
+    cursor: pointer;
+}
+
+#panel-progresion > div,
+#panel-progresion > section,
+#panel-almas .lista-mejoras-alma {
+    border-color: #007d00 !important;
+}
+
+#panel-progresion #contador-esencia,
+#panel-progresion .contador-esencia {
+    color: #ff7777 !important;
+    text-shadow: 0 0 6px #ff222266 !important;
+}
+
+/* Los botones que abren los menús conservan su aspecto gris/amarillo. */
+
+/* Ajuste final Delta Room: botones internos y rojo puro de alta intensidad. */
+#lista-mejoras *,
+#lista-ayudantes *,
+#panel-progresion *,
+#panel-almas * {
+    color: #ff0000 !important;
+    text-shadow: 0 0 3px rgba(255, 0, 0, 0.32) !important;
+}
+
+#lista-mejoras button,
+#lista-ayudantes button,
+#panel-progresion button,
+#panel-almas button,
+#lista-mejoras .comprar-mejora,
+#lista-mejoras .comprar-durabilidad,
+#lista-ayudantes .comprar-ayudante {
+    background: #000000 !important;
+    color: #ff0000 !important;
+    border: 1px solid #00ff00 !important;
+    border-radius: 2px !important;
+    box-shadow: 0 0 4px rgba(0, 255, 0, 0.38), inset 0 0 5px rgba(0, 255, 0, 0.10) !important;
+    text-shadow: 0 0 3px rgba(255, 0, 0, 0.35) !important;
+}
+
+#lista-mejoras button:hover:not(:disabled),
+#lista-ayudantes button:hover:not(:disabled),
+#panel-progresion button:hover:not(:disabled),
+#panel-almas button:hover:not(:disabled) {
+    background: #031003 !important;
+    color: #ff0000 !important;
+    border-color: #00ff00 !important;
+    box-shadow: 0 0 6px rgba(0, 255, 0, 0.55), inset 0 0 7px rgba(0, 255, 0, 0.14) !important;
+}
+
+#lista-mejoras button:disabled,
+#lista-ayudantes button:disabled,
+#panel-progresion button:disabled,
+#panel-almas button:disabled {
+    color: #ff0000 !important;
+    border-color: #00aa00 !important;
+    opacity: 1 !important;
+    box-shadow: none !important;
+    text-shadow: 0 0 2px rgba(255, 0, 0, 0.25) !important;
+}
+
+/* Corrección final Delta Room: TODO el texto en rojo puro y botones de apertura incluidos. */
+#lista-mejoras, #lista-mejoras *,
+#lista-ayudantes, #lista-ayudantes *,
+#panel-progresion, #panel-progresion *,
+#panel-almas, #panel-almas *,
+#lista-esencia, #lista-esencia *,
+#lista-especial, #lista-especial *,
+#compras-almas, #compras-almas *,
+#mejoras-alma, #mejoras-alma * {
+    color: #ff0000 !important;
+    text-shadow: 0 0 3px rgba(255, 0, 0, 0.28) !important;
+}
+
+/* Los accesos a los menús también forman parte de la estética Delta Room. */
+#boton-mejoras,
+#boton-ayudantes,
+#boton-progresion,
+#boton-almas,
+#boton-renacer {
+    background: #000000 !important;
+    color: #ff0000 !important;
+    border: 1px solid #00ff00 !important;
+    border-radius: 2px !important;
+    box-shadow: 0 0 4px rgba(0, 255, 0, 0.38), inset 0 0 5px rgba(0, 255, 0, 0.10) !important;
+    text-shadow: 0 0 3px rgba(255, 0, 0, 0.32) !important;
+}
+
+#boton-mejoras:hover,
+#boton-ayudantes:hover,
+#boton-progresion:hover,
+#boton-almas:hover,
+#boton-renacer:hover {
+    background: #031003 !important;
+    color: #ff0000 !important;
+    border-color: #00ff00 !important;
+    box-shadow: 0 0 6px rgba(0, 255, 0, 0.52), inset 0 0 7px rgba(0, 255, 0, 0.14) !important;
+}
+
+/* Ajuste solicitado: el texto de los menús usa exactamente rojo puro al máximo (#ff0000). */
+#lista-mejoras, #lista-mejoras *,
+#lista-ayudantes, #lista-ayudantes *,
+#panel-progresion, #panel-progresion *,
+#panel-almas, #panel-almas *,
+#lista-esencia, #lista-esencia *,
+#lista-especial, #lista-especial *,
+#compras-almas, #compras-almas *,
+#mejoras-alma, #mejoras-alma *,
+#boton-mejoras, #boton-ayudantes,
+#boton-progresion, #boton-almas, #boton-renacer {
+    color: var(--rojo) !important;
+    text-shadow: 0 0 3px rgba(255, 0, 0, 0.28) !important;
+}
+
+#lista-mejoras button,
+#lista-ayudantes button,
+#panel-progresion button,
+#panel-almas button,
+#lista-esencia button,
+#lista-especial button,
+#compras-almas button,
+#mejoras-alma button,
+#boton-mejoras, #boton-ayudantes,
+#boton-progresion, #boton-almas, #boton-renacer {
+    color: var(--rojo) !important;
+}
+
+
+/* Delta Room: rojo puro real. Se excluyen los contadores globales de Clicks, LV y TP. */
+#menu-mejoras, #menu-mejoras *,
+#menu-ayudantes, #menu-ayudantes *,
+#panel-progresion, #panel-progresion *,
+#panel-almas, #panel-almas *,
+#lista-esencia, #lista-esencia *,
+#lista-especial, #lista-especial *,
+#compras-almas, #compras-almas *,
+#mejoras-alma, #mejoras-alma * {
+    color: #FF0000 !important;
+    -webkit-text-fill-color: #FF0000 !important;
+    text-shadow: 0 0 3px rgba(255, 0, 0, 0.22) !important;
+    opacity: 1 !important;
+    filter: none !important;
+}
+#menu-mejoras button, #menu-ayudantes button,
+#panel-progresion button, #panel-almas button,
+#lista-esencia button, #lista-especial button,
+#compras-almas button, #mejoras-alma button {
+    color: #FF0000 !important;
+    -webkit-text-fill-color: #FF0000 !important;
+}
+#boton-mejoras, #boton-ayudantes, #boton-progresion, #boton-almas, #boton-renacer {
+    background: #000 !important;
+    color: #FF0000 !important;
+    -webkit-text-fill-color: #FF0000 !important;
+    border: 1px solid #00FF00 !important;
+    box-shadow: 0 0 4px rgba(0,255,0,.38), inset 0 0 5px rgba(0,255,0,.10) !important;
+}
+/* La visibilidad de la cadena no depende de la cascada CSS. */
+#lista-ayudantes .comprar-ayudante[hidden] { display: none !important; }
+#lista-ayudantes .comprar-ayudante:not([hidden]) { display: block !important; }
+#lista-ayudantes .comprar-ayudante:disabled {
+    color: #FF0000 !important;
+    -webkit-text-fill-color: #FF0000 !important;
+    opacity: 1 !important;
+    text-shadow: 0 0 3px rgba(255,0,0,.22) !important;
+}
+
+
+/* Estado visual de la cadena de ayudantes: los no desbloqueados quedan grises. */
+#lista-ayudantes .ayudante.ayudante-bloqueado,
+#lista-ayudantes .ayudante.ayudante-bloqueado *,
+#lista-ayudantes .ayudante.ayudante-bloqueado button,
+#lista-ayudantes .ayudante.ayudante-siguiente,
+#lista-ayudantes .ayudante.ayudante-siguiente * {
+    color: #777777 !important;
+    text-shadow: none !important;
+}
+#lista-ayudantes .ayudante.ayudante-bloqueado {
+    border-color: #555555 !important;
+    box-shadow: none !important;
+    background: #080808 !important;
+}
+#lista-ayudantes .ayudante.ayudante-bloqueado button,
+#lista-ayudantes .ayudante.ayudante-siguiente button:disabled {
+    color: #777777 !important;
+    border-color: #555555 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+}
+#lista-ayudantes .ayudante.ayudante-disponible,
+#lista-ayudantes .ayudante.ayudante-disponible * {
+    color: #ff0000 !important;
+    text-shadow: 0 0 3px rgba(255, 0, 0, 0.28) !important;
+}
+#lista-ayudantes .ayudante.ayudante-disponible {
+    border-color: #00ff00 !important;
+}
+
+
+/* Estado de compra bloqueado: el cuadro de acción es gris y el texto amarillo intenso. */
+#lista-mejoras .comprar-mejora:disabled,
+#lista-mejoras .comprar-durabilidad:disabled,
+#lista-mejoras #mejora-tp-ayudantes:disabled,
+#lista-ayudantes .comprar-ayudante:disabled,
+#lista-esencia .comprar-mejora-esencia:disabled,
+#lista-especial button:disabled,
+#compras-almas button:disabled,
+#mejoras-alma button:disabled {
+    background: #707070 !important;
+    background-image: none !important;
+    color: #FFFF00 !important;
+    -webkit-text-fill-color: #FFFF00 !important;
+    border: 1px solid #AFAFAF !important;
+    box-shadow: 0 0 5px rgba(255, 255, 0, 0.42), inset 0 0 4px rgba(0, 0, 0, 0.35) !important;
+    text-shadow: 0 0 4px #FFFF00, 0 0 8px rgba(255, 255, 0, 0.85) !important;
+    opacity: 1 !important;
+    filter: none !important;
+    cursor: not-allowed !important;
+}
+
+
+/* Delta Clicker: mostrar solo la tarjeta del siguiente ayudante de la cadena. */
+#lista-ayudantes .ayudante[hidden] {
+    display: none !important;
+}
+
+/* Botones no comprables: gris oscuro, con texto amarillo intenso. */
+#lista-mejoras .comprar-mejora:disabled,
+#lista-mejoras .comprar-durabilidad:disabled,
+#lista-mejoras #mejora-tp-ayudantes:disabled,
+#lista-ayudantes .comprar-ayudante:disabled,
+#lista-esencia .comprar-mejora-esencia:disabled,
+#lista-especial button:disabled,
+#compras-almas button:disabled,
+#mejoras-alma button:disabled {
+    background: #383838 !important;
+    background-image: none !important;
+    color: #FFFF00 !important;
+    -webkit-text-fill-color: #FFFF00 !important;
+    border: 1px solid #606060 !important;
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.45) !important;
+    text-shadow: 0 0 4px #FFFF00, 0 0 8px rgba(255, 255, 0, 0.78) !important;
+    opacity: 1 !important;
+    filter: none !important;
+    cursor: not-allowed !important;
+}
+
+
+/* Tarjeta persistente para las mejoras que han alcanzado su nivel máximo. */
+.indicador-maximo {
+    flex: 1 1 100%;
+    width: 100%;
+    min-height: 38px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 8px;
+    background: #080000;
+    border: 1px solid #ff0000;
+    color: #ff0000 !important;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    line-height: 1.7;
+    letter-spacing: 1px;
+    text-align: center;
+    text-shadow: 0 0 4px rgba(255, 0, 0, 0.55);
+    box-shadow: 0 0 4px rgba(255, 0, 0, 0.22), inset 0 0 5px rgba(255, 0, 0, 0.07);
+}
+
+.indicador-maximo[hidden] {
+    display: none !important;
+}
+
+/* Estado de compra única: misma tarjeta que MÁXIMO, con etiqueta COMPRADO. */
+.indicador-comprado {
+    border-color: #FF0000 !important;
+    color: #FF0000 !important;
+    -webkit-text-fill-color: #FF0000 !important;
+}
+
+.mejora.estado-maximo,
+.ayudante.estado-maximo {
+    justify-content: center;
+}
+
+
+/* Ayudantes: una fila sencilla, igual que las mejoras de clic.
+   Nombre a la izquierda; un único botón de compra con el precio a la derecha. */
+#lista-ayudantes .ayudante {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    padding: 10px 4px !important;
+}
+#lista-ayudantes .ayudante .info-mejora {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    min-width: 0 !important;
+    gap: 8px !important;
+}
+#lista-ayudantes .ayudante .nombre-mejora {
+    color: #FF0000 !important;
+    font-size: 10px !important;
+    line-height: 1.6 !important;
+    text-shadow: 0 0 3px rgba(255, 0, 0, 0.28) !important;
+}
+#lista-ayudantes .comprar-ayudante {
+    display: block !important;
+    flex: 0 0 auto !important;
+    max-width: 58% !important;
+    padding: 9px 7px !important;
+    white-space: normal !important;
+}
+/* No se apaga el nombre cuando el saldo no alcanza: solo cambia el botón. */
+#lista-ayudantes .ayudante.ayudante-siguiente .nombre-mejora {
+    color: #FF0000 !important;
+    -webkit-text-fill-color: #FF0000 !important;
+    text-shadow: 0 0 3px rgba(255, 0, 0, 0.28) !important;
+}
+#lista-ayudantes .comprar-ayudante:disabled {
+    background: #383838 !important;
+    background-image: none !important;
+    color: #FFFF00 !important;
+    -webkit-text-fill-color: #FFFF00 !important;
+    border: 1px solid #606060 !important;
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.45) !important;
+    text-shadow: 0 0 4px #FFFF00, 0 0 8px rgba(255, 255, 0, 0.78) !important;
+    opacity: 1 !important;
+    filter: none !important;
+    cursor: not-allowed !important;
+}
+
+
+/* Corrección de anclaje del menú de ayudantes: el panel queda unido a su botón. */
+#menu-ayudantes {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+}
+
+/* Se eleva un poco el panel para que no se mezcle con el botón de AYUDANTES. */
+#menu-ayudantes #lista-ayudantes {
+    position: absolute !important;
+    left: 0 !important;
+    bottom: 100% !important;
+    margin-bottom: 18px !important;
+}
+
+
+/* Ayudante de apoyo: pequeño corazón verde, pasivo, encima de la fila de especiales. */
+#zona-ayudantes .mini-alma-apoyo {
+    width: 28px !important;
+    height: 28px !important;
+    z-index: 12 !important;
+    pointer-events: none !important;
+    cursor: default !important;
+    animation: flotar-especial 1.8s ease-in-out infinite !important;
+}
+#zona-ayudantes .mini-alma-apoyo .mini-alma-forma {
+    width: 12px !important;
+    height: 12px !important;
+    left: 8px !important;
+    top: 8px !important;
+    background: #35ff8a !important;
+    filter: drop-shadow(0 0 3px #35ff8a) drop-shadow(0 0 8px #00ff66) !important;
+}
+#zona-ayudantes .mini-alma-apoyo .mini-alma-forma::before,
+#zona-ayudantes .mini-alma-apoyo .mini-alma-forma::after {
+    width: 12px !important;
+    height: 12px !important;
+    background: #35ff8a !important;
+}
+#zona-ayudantes .mini-alma-apoyo .mini-alma-forma::before { top: -6px !important; left: 0 !important; }
+#zona-ayudantes .mini-alma-apoyo .mini-alma-forma::after { left: -6px !important; top: 0 !important; }

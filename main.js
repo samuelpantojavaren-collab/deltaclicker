@@ -18,6 +18,7 @@ const INTERVALO_APARICION_MIN = 7000;
 const INTERVALO_APARICION_MAX = 12000;
 const DANIO_CLIC = 1;
 const COSTE_ESPECIAL = 15;
+const COSTE_AYUDANTE_APOYO = 1500;
 const COSTE_ALMA_VERDE = 100;
 const COSTE_ALMA_DORADA = 2500;
 const COSTE_DESTELLO = 100000000;
@@ -48,6 +49,8 @@ let renacimientos = 0;
 
 let almaVerdeDesbloqueada = false;
 let almaDoradaDesbloqueada = false;
+let ayudanteApoyoComprado = false;
+let ultimaCuracionApoyo = 0;
 let almaActiva = "roja";
 let parryDesbloqueado = false;
 let parryHasta = 0;
@@ -96,7 +99,12 @@ const mejoras = {
     12: { coste: 233, multiplicador: 125, comprada: false },
     13: { coste: 377, multiplicador: 175, comprada: false },
     14: { coste: 610, multiplicador: 250, comprada: false },
-    15: { coste: 987, multiplicador: 350, comprada: false }
+    15: { coste: 987, multiplicador: 350, comprada: false },
+    16: { coste: 1597, multiplicador: 500, comprada: false },
+    17: { coste: 2584, multiplicador: 700, comprada: false },
+    18: { coste: 4181, multiplicador: 1000, comprada: false },
+    19: { coste: 6765, multiplicador: 1400, comprada: false },
+    20: { coste: 10946, multiplicador: 2000, comprada: false }
 };
 
 const durabilidades = {
@@ -124,7 +132,15 @@ const ayudantes = {
     4: crearAyudante(3500),
     5: crearAyudante(25000),
     6: crearAyudante(180000),
-    7: crearAyudante(1250000)
+    7: crearAyudante(1250000),
+    // Desde el ayudante 8, los precios suben de forma gradual (+100.000 clicks).
+    8: crearAyudante(1350000),
+    9: crearAyudante(1450000),
+    10: crearAyudante(1550000),
+    11: crearAyudante(1650000),
+    12: crearAyudante(1750000),
+    13: crearAyudante(1850000),
+    14: crearAyudante(1950000)
 };
 
 const PRECIOS_ESENCIA = [5, 10, 20, 35, 55];
@@ -289,6 +305,26 @@ function requisitoCumplido(coleccion, id) {
     return id === 1 || coleccion[id - 1]?.comprada === true;
 }
 
+// La cadena de ayudantes exige tener comprados TODOS los anteriores,
+// no solo el inmediatamente anterior. Así no se pueden saltar niveles.
+function requisitoAyudanteCumplido(id) {
+    const numero = Number(id);
+    if (!Number.isInteger(numero) || numero < 1 || !ayudantes[numero]) {
+        return false;
+    }
+
+    for (let anterior = 1; anterior < numero; anterior++) {
+        if (ayudantes[anterior]?.comprada !== true) return false;
+    }
+
+    return true;
+}
+
+function obtenerSiguienteAyudanteNormal() {
+    const ids = Object.keys(ayudantes).map(Number).sort((a, b) => a - b);
+    return ids.find(id => !ayudantes[id].comprada && requisitoAyudanteCumplido(id)) ?? null;
+}
+
 function obtenerCantidadEspecial() {
     return Math.min(
         MAX_ESPECIALES,
@@ -408,10 +444,11 @@ function configurarMenu(botonMenu, lista, nombre) {
 }
 
 function colocarBotonesJuntos() {
+    const menuAyudantes = document.getElementById("menu-ayudantes");
     const botonProgresion = document.getElementById("boton-progresion");
     const botonAlmas = document.getElementById("boton-almas");
 
-    if (!botonAyudantes || !botonProgresion || !botonAlmas) return;
+    if (!menuAyudantes || !botonAyudantes || !botonProgresion || !botonAlmas) return;
 
     let grupo = document.getElementById("grupo-botones-navegacion");
 
@@ -428,16 +465,17 @@ function colocarBotonesJuntos() {
             boxSizing: "border-box"
         });
 
-        const padre = botonAyudantes.parentElement;
-
-        if (padre) {
-            padre.insertBefore(grupo, botonAyudantes);
-        } else {
-            document.body.appendChild(grupo);
-        }
+        // El grupo debe vivir en BODY, no dentro de #menu-ayudantes.
+        // Así el panel de ayudantes conserva su botón como referencia de posición.
+        document.body.appendChild(grupo);
+    } else if (grupo.parentElement !== document.body) {
+        document.body.appendChild(grupo);
     }
 
-    grupo.append(botonAyudantes, botonProgresion, botonAlmas);
+    // Se mueve el contenedor completo: botón y panel permanecen juntos.
+    // Esto evita que #lista-ayudantes quede anclada a un contenedor vacío
+    // y termine superpuesta con el botón.
+    grupo.append(menuAyudantes, botonProgresion, botonAlmas);
 }
 
 // Panel de progresión, esencias y combate
@@ -490,14 +528,6 @@ function crearPanelesNuevos() {
         especiales.id = "lista-especial";
         panel.appendChild(especiales);
 
-        panel.appendChild(
-            crearElemento("h3", "", "PRODUCCIÓN DE LOS AYUDANTES")
-        );
-
-        const tp = crearElemento("div", "lista-tp-ayudantes");
-        tp.id = "lista-tp-ayudantes";
-        panel.appendChild(tp);
-
         document.body.appendChild(panel);
     }
 
@@ -547,6 +577,16 @@ function crearPanelesNuevos() {
     if (listaEspecial && !listaEspecial.dataset.creada) {
         listaEspecial.dataset.creada = "true";
 
+        const apoyo = crearElemento(
+            "button",
+            "",
+            `Ayudante de apoyo · ${formatear(COSTE_AYUDANTE_APOYO)} TP`
+        );
+        apoyo.id = "comprar-ayudante-apoyo";
+        apoyo.type = "button";
+        apoyo.addEventListener("click", comprarAyudanteApoyo);
+        listaEspecial.appendChild(apoyo);
+
         const comprar = crearElemento(
             "button",
             "",
@@ -583,23 +623,6 @@ function crearPanelesNuevos() {
         tp.type = "button";
         tp.addEventListener("click", () => comprarMejoraEspecial("tp"));
         listaEspecial.appendChild(tp);
-    }
-
-    const listaTP = document.getElementById("lista-tp-ayudantes");
-
-    if (listaTP && !listaTP.dataset.creada) {
-        listaTP.dataset.creada = "true";
-
-        const mejora = crearElemento(
-            "button",
-            "",
-            "TP por disparo +50% · 5 TP"
-        );
-
-        mejora.id = "mejora-tp-ayudantes";
-        mejora.type = "button";
-        mejora.addEventListener("click", comprarMejoraTPAyudantes);
-        listaTP.appendChild(mejora);
     }
 
     // Menú independiente para comprar almas y sus mejoras.
@@ -701,6 +724,7 @@ function crearBotonMejoraEsencia(tipo, nombre, efecto) {
     );
 
     b.type = "button";
+    b.id = `mejora-esencia-${tipo}`;
     b.dataset.mejorEsencia = tipo;
     b.addEventListener("click", () => comprarMejoraEsencia(tipo));
 
@@ -726,6 +750,8 @@ function cargarProgreso() {
 
         almaVerdeDesbloqueada = d.almaVerdeDesbloqueada === true;
         almaDoradaDesbloqueada = d.almaDoradaDesbloqueada === true;
+        ayudanteApoyoComprado = d.ayudanteApoyoComprado === true;
+        ultimaCuracionApoyo = ayudanteApoyoComprado ? Date.now() : 0;
         parryDesbloqueado = d.parryDesbloqueado === true;
         modoExtremo = d.modoExtremo === true;
 
@@ -756,6 +782,33 @@ function cargarProgreso() {
                 ayudantes[id].comprada = a.comprada === true;
                 ayudantes[id].despierta = a.despierta !== false;
             }
+        }
+
+        // Repara guardados antiguos que pudieran tener ayudantes saltados.
+        // Los niveles comprados fuera de orden se devuelven a clicks para no
+        // perder lo gastado: a partir del primer hueco, los siguientes vuelven a bloquearse.
+        let cadenaInterrumpida = false;
+        let huboReembolsoAyudantes = false;
+        for (const id of Object.keys(ayudantes).map(Number).sort((a, b) => a - b)) {
+            const a = ayudantes[id];
+            if (!cadenaInterrumpida) {
+                if (!a.comprada) cadenaInterrumpida = true;
+                continue;
+            }
+
+            if (a.comprada) {
+                a.comprada = false;
+                a.despierta = true;
+                a.inicioDespierta = 0;
+                a.inicioSueno = 0;
+                a.tiempoRestante = 0;
+                clicks += a.coste;
+                huboReembolsoAyudantes = true;
+            }
+        }
+
+        if (huboReembolsoAyudantes) {
+            console.warn('Se restauró la cadena de ayudantes y se reembolsaron compras fuera de orden.');
         }
 
         for (const tipo of Object.keys(mejorasEsencia)) {
@@ -828,6 +881,7 @@ function guardarProgreso() {
             juegoFinalizado,
             almaVerdeDesbloqueada,
             almaDoradaDesbloqueada,
+            ayudanteApoyoComprado,
             parryDesbloqueado,
             modoExtremo,
             nivelVida,
@@ -959,6 +1013,89 @@ function animarCorazon() {
     alma.classList.add("latir");
 }
 
+// Muestra una tarjeta roja «MÁXIMO» en el mismo hueco de una mejora agotada.
+// Funciona tanto con tarjetas .mejora/.ayudante como con botones independientes.
+function actualizarIndicadorMaximo(boton, esMaximo, mostrarBoton = true) {
+    if (!boton) return;
+
+    const tarjeta = boton.closest(".mejora, .ayudante");
+
+    if (tarjeta) {
+        let indicador = Array.from(tarjeta.children).find(
+            hijo => hijo.classList.contains("indicador-maximo")
+        );
+
+        if (!indicador) {
+            indicador = crearElemento("div", "indicador-maximo", "MÁXIMO");
+            indicador.setAttribute("role", "status");
+            tarjeta.appendChild(indicador);
+        }
+
+        for (const hijo of Array.from(tarjeta.children)) {
+            if (hijo !== indicador) hijo.hidden = esMaximo;
+        }
+
+        indicador.hidden = !esMaximo;
+        tarjeta.classList.toggle("estado-maximo", esMaximo);
+        if (esMaximo) tarjeta.hidden = false;
+        return;
+    }
+
+    const clave = boton.id || boton.dataset.mejorEsencia ||
+        boton.dataset.mejorAyudante || "mejora";
+    const idIndicador = `indicador-maximo-${clave}`;
+    let indicador = document.getElementById(idIndicador);
+
+    if (!indicador) {
+        indicador = crearElemento("div", "indicador-maximo", "MÁXIMO");
+        indicador.id = idIndicador;
+        indicador.setAttribute("role", "status");
+        boton.insertAdjacentElement("afterend", indicador);
+    }
+
+    boton.hidden = esMaximo || !mostrarBoton;
+    indicador.hidden = !esMaximo;
+}
+
+// Las compras únicas se sustituyen por una tarjeta persistente «COMPRADO».
+// El estado se deriva de la bandera guardada de cada desbloqueo, así que
+// también aparece correctamente al cargar una partida ya completada.
+function actualizarIndicadorComprado(boton, estaComprado) {
+    if (!boton) return;
+
+    const clave = boton.id || "compra-unica";
+    const idIndicador = `indicador-comprado-${clave}`;
+    let indicador = document.getElementById(idIndicador);
+
+    if (!indicador) {
+        indicador = crearElemento(
+            "div",
+            "indicador-maximo indicador-comprado",
+            "COMPRADO"
+        );
+        indicador.id = idIndicador;
+        indicador.setAttribute("role", "status");
+        boton.insertAdjacentElement("afterend", indicador);
+    }
+
+    boton.hidden = estaComprado;
+    if (estaComprado) boton.disabled = true;
+    indicador.hidden = !estaComprado;
+}
+
+// Al comprar un nivel, se sustituye el botón por uno nuevo para el siguiente nivel.
+function renovarBotonMejora(id, accion) {
+    const actual = document.getElementById(id);
+    if (!actual) return;
+    const siguiente = actual.cloneNode(false);
+    siguiente.className = actual.className;
+    siguiente.id = id;
+    siguiente.type = "button";
+    siguiente.addEventListener("click", accion);
+    siguiente.classList.add("mejora-encadenada-aparece");
+    actual.replaceWith(siguiente);
+}
+
 // Mejoras
 function comprarMejoraClick(id) {
     const m = mejoras[id];
@@ -975,6 +1112,13 @@ function comprarMejoraClick(id) {
     tpTotal -= m.coste;
     m.comprada = true;
 
+    const boton = document.querySelector(`.comprar-mejora[data-mejora="${id}"]`);
+    if (boton) {
+        const siguiente = boton.cloneNode(false);
+        siguiente.addEventListener("click", () => comprarMejoraClick(Number(siguiente.dataset.mejora)));
+        boton.replaceWith(siguiente);
+    }
+
     actualizarInterfaz();
     guardarProgreso();
 }
@@ -989,6 +1133,7 @@ function comprarMejoraEsencia(tipo) {
 
     esencia -= coste;
     m.nivel++;
+    renovarBotonMejora(`mejora-esencia-${tipo}`, () => comprarMejoraEsencia(tipo));
 
     actualizarInterfaz();
     guardarProgreso();
@@ -1031,6 +1176,8 @@ function comprarMejoraEspecial(tipo) {
 
     esencia -= coste;
     ayudanteEspecial[prop]++;
+    const idBoton = tipo === "velocidad" ? "mejora-especial-velocidad" : "mejora-especial-tp";
+    renovarBotonMejora(idBoton, () => comprarMejoraEspecial(tipo));
 
     actualizarInterfaz();
     guardarProgreso();
@@ -1046,7 +1193,27 @@ function comprarMejoraTPAyudantes() {
 
     tpTotal -= coste;
     mejoraTPAyudantes.nivel++;
+    renovarBotonMejora("mejora-tp-ayudantes", comprarMejoraTPAyudantes);
 
+    actualizarInterfaz();
+    guardarProgreso();
+}
+
+function comprarAyudanteApoyo() {
+    if (ayudanteApoyoComprado) return;
+
+    if (tpTotal < COSTE_AYUDANTE_APOYO) {
+        return mostrarAvisoRobo(
+            `Necesitas ${formatear(COSTE_AYUDANTE_APOYO)} TP para comprar el Ayudante de apoyo.`
+        );
+    }
+
+    tpTotal -= COSTE_AYUDANTE_APOYO;
+    ayudanteApoyoComprado = true;
+    ultimaCuracionApoyo = Date.now();
+    crearSpriteAyudanteApoyo();
+    colocarTodosLosAyudantes();
+    mostrarAvisoRobo("¡AYUDANTE DE APOYO COMPRADO! Tu corazón verde te curará automáticamente.");
     actualizarInterfaz();
     guardarProgreso();
 }
@@ -1189,6 +1356,7 @@ function comprarMejoraVida() {
     esencia -= coste;
     nivelVida++;
     vidaJugador = Math.min(maxVida(), vidaJugador + VIDA_POR_MEJORA);
+    renovarBotonMejora("mejora-vida", comprarMejoraVida);
 
     actualizarInterfaz();
     guardarProgreso();
@@ -1202,6 +1370,7 @@ function comprarMejoraDefensa() {
 
     esencia -= coste;
     nivelDefensa++;
+    renovarBotonMejora("mejora-defensa", comprarMejoraDefensa);
 
     actualizarInterfaz();
     guardarProgreso();
@@ -1228,6 +1397,7 @@ function comprarMejoraTamanoCaja() {
     esencia -= coste;
     nivelTamanoCaja++;
     aplicarTamanoCuadroBatalla();
+    renovarBotonMejora("mejora-tamano-caja", comprarMejoraTamanoCaja);
     actualizarInterfaz();
     guardarProgreso();
     mostrarAvisoRobo(`¡Cuadro de batalla ampliado a ${TAMANO_CAJA_BASE + nivelTamanoCaja * AUMENTO_TAMANO_CAJA}px!`);
@@ -1332,11 +1502,11 @@ function renacer() {
 
 // Ayudantes
 // Distribución:
-//        [S1] [S2]           ← 2 especiales arriba (línea horizontal)
-//   [N1]              [N4]
-//   [N2]    [CAJA]    [N5]   ← 3 normales a cada lado (columnas verticales)
-//   [N3]              [N6]
-//              [N7]          ← el 7º pegado al borde inferior de la pantalla
+// [N8] [N1]       [N4] [N9]
+// [N10][N2] [CAJA][N5] [N11]
+// [N12][N3]       [N6] [N13]
+//                 [N7][N14]  ← últimos dos junto al borde inferior
+// Los ayudantes exteriores alternan izquierda/derecha por filas.
 
 function crearSpriteAyudante(id) {
     if (!zonaAyudantes || !ayudantes[id]) return null;
@@ -1426,6 +1596,60 @@ function crearSpriteEspecial(id) {
     return s;
 }
 
+function crearSpriteAyudanteApoyo() {
+    if (!ayudanteApoyoComprado || !zonaAyudantes) return null;
+
+    let s = document.getElementById("mini-alma-apoyo");
+    if (s) {
+        colocarSpriteAyudanteApoyo();
+        return s;
+    }
+
+    s = crearElemento("div", "mini-alma mini-alma-apoyo");
+    s.id = "mini-alma-apoyo";
+    s.setAttribute("role", "img");
+    s.setAttribute("aria-label", "Ayudante de apoyo: cura al jugador");
+    s.setAttribute("title", "Ayudante de apoyo · Curación pasiva");
+
+    const forma = crearElemento("span", "mini-alma-forma");
+    forma.setAttribute("aria-hidden", "true");
+    s.appendChild(forma);
+
+    s.style.position = "absolute";
+    s.style.margin = "0";
+    s.style.top = "auto";
+    s.style.bottom = "auto";
+    s.style.left = "auto";
+    s.style.right = "auto";
+    s.style.pointerEvents = "none";
+
+    zonaAyudantes.appendChild(s);
+    colocarSpriteAyudanteApoyo();
+    return s;
+}
+
+function colocarSpriteAyudanteApoyo() {
+    const s = document.getElementById("mini-alma-apoyo");
+    if (!s || !zonaAyudantes || !boton) return;
+
+    const zr = zonaAyudantes.getBoundingClientRect();
+    const ar = boton.getBoundingClientRect();
+    const sw = s.offsetWidth || 28;
+    const sh = s.offsetHeight || 28;
+    const altoEspecial = 42;
+    const margenEspecial = 24;
+    const separacion = 8;
+    const boxMidX = ar.left + ar.width / 2 - zr.left;
+    const boxTop = ar.top - zr.top;
+
+    // El corazón verde ocupa una fila propia, justo encima de los especiales.
+    const filaEspecialY = boxTop - margenEspecial - altoEspecial;
+    const y = filaEspecialY - separacion - sh;
+
+    s.style.left = `${Math.max(4, Math.min(boxMidX - sw / 2, zr.width - sw - 4))}px`;
+    s.style.top = `${Math.max(4, y)}px`;
+}
+
 function colocarSpriteAyudante(id) {
     const s = document.getElementById(`mini-alma-${id}`);
     if (!s || !zonaAyudantes || !boton) return;
@@ -1442,11 +1666,8 @@ function colocarSpriteAyudante(id) {
     const boxRight = ar.right - zr.left;
     const boxMidY = ar.top - zr.top + ar.height / 2;
 
-    // Columnas verticales a cada lado de la caja:
-    //   [1]              [4]
-    //   [2]    [CAJA]    [5]
-    //   [3]              [6]
-    //          [7]  ← pegado al borde inferior de la pantalla
+    // Las almas 1–6 ocupan las columnas interiores y 8–13 las exteriores,
+    // alternando izquierda/derecha por filas. Las almas 7 y 14 van abajo.
     if (id >= 1 && id <= 3) {
         const slot = id - 1; // 0,1,2 de arriba a abajo
         const x = boxLeft - margen - sw;
@@ -1463,10 +1684,27 @@ function colocarSpriteAyudante(id) {
         const y = y0 + slot * (sh + gap);
         s.style.left = `${Math.min(x, zr.width - sw - 4)}px`;
         s.style.top = `${Math.max(4, Math.min(y, zr.height - sh - 4))}px`;
-    } else if (id === 7) {
-        // Centro horizontal, pegado al borde inferior de la PANTALLA
-        // (coordenadas viewport → relativas a zonaAyudantes)
-        const x = zr.width / 2 - sw / 2;
+    } else if ([8, 10, 12].includes(id)) {
+        // Columna exterior izquierda: 8 arriba, 10 al centro y 12 abajo.
+        const slot = (id - 8) / 2;
+        const columnaAlto = 3 * sh + 2 * gap;
+        const y0 = boxMidY - columnaAlto / 2;
+        const x = boxLeft - margen - (2 * sw) - (2 * gap);
+        const y = y0 + slot * (sh + gap);
+        s.style.left = `${Math.max(4, x)}px`;
+        s.style.top = `${Math.max(4, Math.min(y, zr.height - sh - 4))}px`;
+    } else if ([9, 11, 13].includes(id)) {
+        // Columna exterior derecha: 9 arriba, 11 al centro y 13 abajo.
+        const slot = (id - 9) / 2;
+        const columnaAlto = 3 * sh + 2 * gap;
+        const y0 = boxMidY - columnaAlto / 2;
+        const x = boxRight + margen + sw + (2 * gap);
+        const y = y0 + slot * (sh + gap);
+        s.style.left = `${Math.min(x, zr.width - sw - 4)}px`;
+        s.style.top = `${Math.max(4, Math.min(y, zr.height - sh - 4))}px`;
+    } else if (id === 7 || id === 14) {
+        // El 14 queda junto al 7, centrados en la parte inferior.
+        const x = zr.width / 2 + (id === 7 ? -sw - gap / 2 : gap / 2);
         const yPantalla = window.innerHeight - sh - 12;
         const y = yPantalla - zr.top;
         s.style.left = `${Math.max(4, Math.min(x, zr.width - sw - 4))}px`;
@@ -1505,7 +1743,7 @@ function colocarSpriteEspecial(id) {
 }
 
 function colocarTodosLosSpritesAyudantes() {
-    for (let id = 1; id <= 7; id++) {
+    for (let id = 1; id <= 14; id++) {
         if (ayudantes[id]?.comprada) {
             colocarSpriteAyudante(id);
         }
@@ -1521,6 +1759,10 @@ function colocarTodosLosEspeciales() {
 function colocarTodosLosAyudantes() {
     colocarTodosLosSpritesAyudantes();
     colocarTodosLosEspeciales();
+    if (ayudanteApoyoComprado) {
+        crearSpriteAyudanteApoyo();
+        colocarSpriteAyudanteApoyo();
+    }
 }
 
 function actualizarVisibilidadAyudantes() {
@@ -1534,6 +1776,13 @@ function actualizarVisibilidadAyudantes() {
         s.style.visibility = ocultos ? "hidden" : "visible";
         s.style.pointerEvents = ocultos ? "none" : "auto";
     });
+
+    // El ayudante de apoyo es pasivo: sigue visible y curando aunque cambies de alma.
+    const apoyo = document.getElementById("mini-alma-apoyo");
+    if (apoyo) {
+        apoyo.style.visibility = (!jugadorMuerto && !juegoFinalizado) ? "visible" : "hidden";
+        apoyo.style.pointerEvents = "none";
+    }
 }
 
 function comprarAyudanteNormal(id) {
@@ -1542,7 +1791,8 @@ function comprarAyudanteNormal(id) {
     if (
         !a ||
         a.comprada ||
-        !requisitoCumplido(ayudantes, id) ||
+        !requisitoAyudanteCumplido(id) ||
+        obtenerSiguienteAyudanteNormal() !== Number(id) ||
         clicks < a.coste
     ) {
         return;
@@ -2350,6 +2600,21 @@ function moverJugador() {
     if (!alma || jugadorMuerto || juegoFinalizado) return;
 
     const ahora = Date.now();
+
+    // Fuente de curación independiente: se acumula con la del Alma Verde.
+    if (ayudanteApoyoComprado) {
+        if (ultimaCuracionApoyo <= 0) ultimaCuracionApoyo = ahora;
+        const ticksApoyo = Math.floor((ahora - ultimaCuracionApoyo) / 1000);
+        if (ticksApoyo > 0) {
+            ultimaCuracionApoyo += ticksApoyo * 1000;
+            const vidaAnterior = vidaJugador;
+            vidaJugador = Math.min(
+                maxVida(),
+                vidaJugador + ticksApoyo * CURACION_ALMA_VERDE
+            );
+            if (vidaJugador !== vidaAnterior) actualizarBarraVida();
+        }
+    }
     if (parryHasta > 0 && ahora >= parryHasta) {
         parryHasta = 0;
         alma.classList.remove("parry-activo");
@@ -3242,6 +3507,7 @@ function morirJugador() {
     parryCooldownHasta = 0;
     bloqueoJefesHasta = 0;
     ultimaCuracionVerde = 0;
+    ultimaCuracionApoyo = ayudanteApoyoComprado ? Date.now() : 0;
     document.body.classList.remove("parry-activo");
     if (alma) alma.classList.remove("parry-activo", "alma-verde", "alma-dorada");
     if (boton) boton.classList.remove("modo-verde", "modo-dorado");
@@ -3531,6 +3797,23 @@ function asegurarMejorasClickEnMenu() {
     const lista = document.getElementById("lista-mejoras");
     if (!lista) return;
 
+    // Las mejoras que cuestan TP se agrupan en el menú MEJORAS.
+    let seccionTP = document.getElementById("seccion-tp-ayudantes");
+    if (!seccionTP) {
+        seccionTP = crearElemento("div", "separador-menu", "PRODUCCIÓN DE LOS AYUDANTES");
+        seccionTP.id = "seccion-tp-ayudantes";
+        lista.appendChild(seccionTP);
+    }
+
+    let mejoraTP = document.getElementById("mejora-tp-ayudantes");
+    if (!mejoraTP) {
+        mejoraTP = crearElemento("button", "", "TP por disparo +50% · 5 TP");
+        mejoraTP.id = "mejora-tp-ayudantes";
+        mejoraTP.type = "button";
+        mejoraTP.addEventListener("click", comprarMejoraTPAyudantes);
+        lista.appendChild(mejoraTP);
+    }
+
     const separador = lista.querySelector(".separador-menu");
 
     for (const id of Object.keys(mejoras).map(Number).sort((a, b) => a - b)) {
@@ -3576,6 +3859,10 @@ function asegurarMejorasClickEnMenu() {
 function actualizarBotonesCompra() {
     asegurarMejorasClickEnMenu();
 
+    const idsMejorasClick = Object.keys(mejoras).map(Number).sort((a, c) => a - c);
+    const ultimaMejoraClick = idsMejorasClick[idsMejorasClick.length - 1];
+    const siguiente = idsMejorasClick.find(id => !mejoras[id].comprada);
+
     document.querySelectorAll(".comprar-mejora").forEach(b => {
         const id = Number(b.dataset.mejora);
         const m = mejoras[id];
@@ -3584,18 +3871,22 @@ function actualizarBotonesCompra() {
 
         const ok = requisitoCumplido(mejoras, id);
         const bloque = b.closest(".mejora");
-        const siguiente = Object.keys(mejoras).map(Number).sort((a, c) => a - c)
-            .find(n => !mejoras[n].comprada);
-        if (bloque) bloque.hidden = m.comprada || id !== siguiente;
+        const esMaximo = siguiente === undefined && id === ultimaMejoraClick;
+        actualizarIndicadorMaximo(b, esMaximo);
+
+        if (bloque) {
+            bloque.hidden = esMaximo ? false : (m.comprada || id !== siguiente);
+        }
 
         b.disabled = m.comprada || !ok || tpTotal < m.coste;
-
-        b.textContent = m.comprada
-            ? `MEJORA ${id} · COMPRADA`
-            : !ok
-                ? `MEJORA ${id} · BLOQUEADA`
-                : `MEJORA ${id} · ${formatear(m.coste)} TP`;
+        b.textContent = !ok
+            ? `MEJORA ${id} · BLOQUEADA`
+            : `MEJORA ${id} · ${formatear(m.coste)} TP`;
     });
+
+    const idsDurabilidad = Object.keys(durabilidades).map(Number).sort((a, c) => a - c);
+    const ultimaDurabilidad = idsDurabilidad[idsDurabilidad.length - 1];
+    const siguienteDurabilidad = idsDurabilidad.find(id => !durabilidades[id].comprada);
 
     document.querySelectorAll(".comprar-durabilidad").forEach(b => {
         const id = Number(b.dataset.durabilidad);
@@ -3604,81 +3895,74 @@ function actualizarBotonesCompra() {
         if (!m) return;
 
         const ok = requisitoCumplido(durabilidades, id);
+        const bloque = b.closest(".mejora");
+        const esMaximo = siguienteDurabilidad === undefined && id === ultimaDurabilidad;
+        actualizarIndicadorMaximo(b, esMaximo);
+
+        if (bloque) {
+            bloque.hidden = esMaximo ? false : (m.comprada || id !== siguienteDurabilidad);
+        }
 
         b.disabled = m.comprada || !ok || tpTotal < m.coste;
-
-        b.textContent = m.comprada
-            ? "COMPRADA"
-            : !ok
-                ? "BLOQUEADA"
-                : "COMPRAR";
+        b.textContent = `DURABILIDAD ${id} · ${formatear(m.coste)} TP`;
     });
 }
 
 function actualizarAyudantes() {
-    document.querySelectorAll(".comprar-ayudante").forEach(b => {
-        const id = Number(b.dataset.ayudante);
+    // En el menú solo se muestra una tarjeta: el siguiente ayudante pendiente.
+    // Al comprarlo, su tarjeta desaparece y la siguiente ocupa su lugar.
+    const ids = Object.keys(ayudantes).map(Number).sort((a, b) => a - b);
+    const siguienteAyudante = obtenerSiguienteAyudanteNormal();
+    const todosLosAyudantesComprados = ids.every(id => ayudantes[id].comprada === true);
+    const ultimoAyudante = ids[ids.length - 1];
 
-        if (!ayudantes[id]) b.hidden = true;
-    });
-
-    for (const id of Object.keys(ayudantes).map(Number)) {
+    for (const id of ids) {
         const a = ayudantes[id];
+        const boton = document.querySelector(`.comprar-ayudante[data-ayudante="${id}"]`);
+        const tarjeta = boton?.closest('.ayudante');
+        const spriteExistente = document.getElementById(`mini-alma-${id}`);
+        const comprado = a.comprada === true;
+        const esSiguiente = id === siguienteAyudante;
+        const visibleEnMenu = !comprado && esSiguiente;
+        const mostrarMaximo = todosLosAyudantesComprados && id === ultimoAyudante;
+        const puedePagar = clicks >= a.coste;
+        const puedeComprar = visibleEnMenu && puedePagar;
 
-        const estado = document.getElementById(
-            `estado-ayudante-${id}`
-        );
+        if (boton) actualizarIndicadorMaximo(boton, mostrarMaximo);
 
-        const b = document.querySelector(
-            `.comprar-ayudante[data-ayudante="${id}"]`
-        );
-
-        let s = document.getElementById(`mini-alma-${id}`);
-
-        if (!a.comprada) {
-            if (s) s.remove();
-
-            const ok = requisitoCumplido(ayudantes, id);
-
-            if (b) {
-                b.hidden = false;
-                b.disabled = !ok || clicks < a.coste;
-
-                b.textContent = ok
-                    ? `COMPRAR · ${formatear(a.coste)} clicks`
-                    : "BLOQUEADA";
-            }
-
-            if (estado) {
-                estado.textContent = ok ? "Sin comprar" : "Bloqueada";
-            }
-
-            continue;
+        if (tarjeta) {
+            // Al completar la cadena, la última tarjeta se convierte en MÁXIMO.
+            tarjeta.hidden = !visibleEnMenu && !mostrarMaximo;
+            tarjeta.classList.toggle('ayudante-comprado', comprado);
+            tarjeta.classList.toggle('ayudante-disponible', puedeComprar);
+            tarjeta.classList.toggle('ayudante-siguiente', visibleEnMenu && !puedePagar);
+            tarjeta.classList.remove('ayudante-bloqueado');
         }
 
-        if (!s) s = crearSpriteAyudante(id);
+        if (boton) {
+            boton.hidden = !visibleEnMenu;
+            boton.style.display = visibleEnMenu ? 'block' : 'none';
+            boton.disabled = !puedeComprar;
+            boton.setAttribute('aria-disabled', String(!puedeComprar));
+            // Fila compacta: nombre a la izquierda y compra con precio a la derecha.
+            // El botón queda gris/amarillo cuando no alcanza el saldo.
+            boton.textContent = `COMPRAR · ${formatear(a.coste)} CLICKS`;
+        }
 
-        if (b) b.hidden = true;
-        if (!s) continue;
-
-        s.classList.toggle("dormida", !a.despierta);
-        s.disabled = false;
-
-        s.title = a.despierta
-            ? `Mini alma ${id}`
-            : "Haz clic para despertar";
-
-        if (estado) {
-            estado.textContent = a.despierta
-                ? "Despierta"
-                : "¡Haz clic para despertar!";
+        if (comprado) {
+            if (!document.getElementById(`mini-alma-${id}`)) crearSpriteAyudante(id);
+            const sprite = document.getElementById(`mini-alma-${id}`);
+            if (sprite) {
+                sprite.classList.toggle('dormida', !a.despierta);
+                sprite.disabled = false;
+                sprite.title = a.despierta ? `Mini alma ${id}` : 'Haz clic para despertar';
+            }
+        } else {
+            if (spriteExistente) spriteExistente.remove();
         }
     }
 
-    for (let id = 1; id <= obtenerCantidadEspecial(); id++) {
-        crearSpriteEspecial(id);
-    }
-
+    for (let id = 1; id <= obtenerCantidadEspecial(); id++) crearSpriteEspecial(id);
     colocarTodosLosAyudantes();
     actualizarVisibilidadAyudantes();
 }
@@ -3689,6 +3973,7 @@ function actualizarPanelProgresion() {
     const br = document.getElementById("boton-renacer");
 
     const be = document.getElementById("comprar-especial");
+    const bApoyo = document.getElementById("comprar-ayudante-apoyo");
     const bv = document.getElementById("mejora-especial-velocidad");
     const bt = document.getElementById("mejora-especial-tp");
     const btp = document.getElementById("mejora-tp-ayudantes");
@@ -3719,19 +4004,22 @@ function actualizarPanelProgresion() {
         const max = m.nivel >= m.precios.length;
         const coste = max ? 0 : m.precios[m.nivel];
 
+        actualizarIndicadorMaximo(b, max);
         b.disabled = max || esencia < coste;
-
-        b.textContent = max
-            ? `${tipo === "click" ? "Poder de clic" : "Velocidad normal"} · MÁXIMO`
-            : `${tipo === "click" ? "Poder de clic" : "Velocidad normal"} · Nivel ${m.nivel} · ${coste} Esencias`;
+        b.textContent = `${tipo === "click" ? "Poder de clic" : "Velocidad normal"} · Nivel ${m.nivel} · ${coste} Esencias`;
     });
 
-    if (be) {
-        be.disabled = n >= MAX_ESPECIALES || esencia < COSTE_ESPECIAL;
+    if (bApoyo) {
+        bApoyo.disabled = ayudanteApoyoComprado || tpTotal < COSTE_AYUDANTE_APOYO;
+        bApoyo.textContent = `Ayudante de apoyo · ${formatear(COSTE_AYUDANTE_APOYO)} TP`;
+        actualizarIndicadorComprado(bApoyo, ayudanteApoyoComprado);
+    }
 
-        be.textContent = n >= MAX_ESPECIALES
-            ? `Ayudantes especiales · MÁXIMO ${MAX_ESPECIALES}/${MAX_ESPECIALES}`
-            : `Comprar ayudante especial · ${COSTE_ESPECIAL} Esencias (${n}/${MAX_ESPECIALES})`;
+    if (be) {
+        const max = n >= MAX_ESPECIALES;
+        actualizarIndicadorMaximo(be, max);
+        be.disabled = max || esencia < COSTE_ESPECIAL;
+        be.textContent = `Comprar ayudante especial · ${COSTE_ESPECIAL} Esencias (${n}/${MAX_ESPECIALES})`;
     }
 
     if (bv) {
@@ -3739,12 +4027,10 @@ function actualizarPanelProgresion() {
         const max = k >= PRECIOS_ESPECIAL.length;
         const c = max ? 0 : PRECIOS_ESPECIAL[k];
 
-        bv.hidden = n === 0;
+        actualizarIndicadorMaximo(bv, max && n > 0, n > 0);
         bv.disabled = n === 0 || max || esencia < c;
 
-        bv.textContent = max
-            ? "Velocidad especial · MÁXIMO"
-            : `Velocidad especial · Nivel ${k} · ${c} Esencias`;
+        bv.textContent = `Velocidad especial · Nivel ${k} · ${c} Esencias`;
     }
 
     if (bt) {
@@ -3752,12 +4038,10 @@ function actualizarPanelProgresion() {
         const max = k >= PRECIOS_ESPECIAL.length;
         const c = max ? 0 : PRECIOS_ESPECIAL[k];
 
-        bt.hidden = n === 0;
+        actualizarIndicadorMaximo(bt, max && n > 0, n > 0);
         bt.disabled = n === 0 || max || esencia < c;
 
-        bt.textContent = max
-            ? "TP especial · MÁXIMO"
-            : `TP especial · Nivel ${k} · ${c} Esencias`;
+        bt.textContent = `TP especial · Nivel ${k} · ${c} Esencias`;
     }
 
     if (btp) {
@@ -3765,11 +4049,9 @@ function actualizarPanelProgresion() {
         const max = k >= mejoraTPAyudantes.precios.length;
         const c = max ? 0 : mejoraTPAyudantes.precios[k];
 
+        actualizarIndicadorMaximo(btp, max);
         btp.disabled = max || tpTotal < c;
-
-        btp.textContent = max
-            ? "TP por disparo · MÁXIMO"
-            : `TP por disparo +50% · Nivel ${k} · ${c} TP`;
+        btp.textContent = `TP por disparo +50% · Nivel ${k} · ${c} TP`;
     }
 
     const bVerde = document.getElementById("comprar-alma-verde");
@@ -3778,6 +4060,7 @@ function actualizarPanelProgresion() {
         bVerde.textContent = almaVerdeDesbloqueada
             ? "ALMA VERDE · DESBLOQUEADA PARA SIEMPRE (E)"
             : `Desbloquear Alma Verde · ${formatear(COSTE_ALMA_VERDE)} TP`;
+        actualizarIndicadorComprado(bVerde, almaVerdeDesbloqueada);
     }
 
     const bd = document.getElementById("comprar-alma-dorada");
@@ -3790,6 +4073,7 @@ function actualizarPanelProgresion() {
         bd.textContent = almaDoradaDesbloqueada
             ? "ALMA DORADA · DESBLOQUEADA PARA SIEMPRE"
             : `Desbloquear Alma Dorada · ${formatear(COSTE_ALMA_DORADA)} Esencias`;
+        actualizarIndicadorComprado(bd, almaDoradaDesbloqueada);
     }
 
     const bvj = document.getElementById("mejora-vida");
@@ -3798,12 +4082,11 @@ function actualizarPanelProgresion() {
         const max = nivelVida >= COSTES_VIDA.length;
         const c = max ? 0 : COSTES_VIDA[nivelVida];
 
+        actualizarIndicadorMaximo(bvj, max);
         bvj.disabled = modoExtremo || max || esencia < c;
 
         bvj.textContent = modoExtremo
             ? `VIDA · TEMPORALMENTE INACTIVA (Nivel ${nivelVida})`
-            : max
-            ? `Vida · MÁXIMA (${maxVida()} HP)`
             : `Vida +${VIDA_POR_MEJORA} · Nivel ${nivelVida} · ${c} Esencias`;
     }
 
@@ -3813,12 +4096,11 @@ function actualizarPanelProgresion() {
         const max = nivelDefensa >= COSTES_DEFENSA.length;
         const c = max ? 0 : COSTES_DEFENSA[nivelDefensa];
 
+        actualizarIndicadorMaximo(bdef, max);
         bdef.disabled = modoExtremo || max || esencia < c;
 
         bdef.textContent = modoExtremo
             ? `DEFENSA · TEMPORALMENTE INACTIVA (Nivel ${nivelDefensa})`
-            : max
-            ? "Defensa · MÁXIMA (50%)"
             : `Defensa ${Math.round(obtenerDefensa() * 100)}% → ${Math.round((nivelDefensa + 1) * 10)}% · ${c} Esencias`;
     }
 
@@ -3828,10 +4110,9 @@ function actualizarPanelProgresion() {
         const tamanoActual = TAMANO_CAJA_BASE + nivelTamanoCaja * AUMENTO_TAMANO_CAJA;
         const coste = max ? 0 : COSTES_TAMANO_CAJA[nivelTamanoCaja];
         const siguienteTamano = tamanoActual + AUMENTO_TAMANO_CAJA;
+        actualizarIndicadorMaximo(bTamanoCaja, max);
         bTamanoCaja.disabled = max || esencia < coste;
-        bTamanoCaja.textContent = max
-            ? `CUADRO DE BATALLA · MÁXIMO (${tamanoActual}×${tamanoActual})`
-            : `AMPLIAR CUADRO · ${tamanoActual}→${siguienteTamano}px · Nivel ${nivelTamanoCaja + 1}/${COSTES_TAMANO_CAJA.length} · ${formatear(coste)} Esencias`;
+        bTamanoCaja.textContent = `AMPLIAR CUADRO · ${tamanoActual}→${siguienteTamano}px · Nivel ${nivelTamanoCaja + 1}/${COSTES_TAMANO_CAJA.length} · ${formatear(coste)} Esencias`;
     }
 
     const bParry = document.getElementById("comprar-parry");
@@ -3840,6 +4121,7 @@ function actualizarPanelProgresion() {
         bParry.textContent = parryDesbloqueado
             ? "PARRY · DESBLOQUEADO (ESPACIO)"
             : `Desbloquear Parry · ${formatear(COSTE_PARRY)} Esencias`;
+        actualizarIndicadorComprado(bParry, parryDesbloqueado);
     }
 
     const bDestello = document.getElementById("comprar-el-destello");
@@ -3848,6 +4130,7 @@ function actualizarPanelProgresion() {
         bDestello.textContent = juegoFinalizado
             ? "EL DESTELLO · JUEGO COMPLETADO"
             : `EL DESTELLO · ${formatear(COSTE_DESTELLO)} clicks`;
+        actualizarIndicadorComprado(bDestello, juegoFinalizado);
     }
 }
 
@@ -3944,6 +4227,28 @@ document.querySelectorAll(".comprar-durabilidad").forEach(b => {
 
         tpTotal -= m.coste;
         m.comprada = true;
+
+        const boton = document.querySelector(`.comprar-durabilidad[data-durabilidad="${id}"]`);
+        if (boton) {
+            const siguiente = boton.cloneNode(false);
+            siguiente.addEventListener("click", () => {
+                const siguienteId = Number(siguiente.dataset.durabilidad);
+                const mejora = durabilidades[siguienteId];
+                if (!mejora || mejora.comprada || !requisitoCumplido(durabilidades, siguienteId) || tpTotal < mejora.coste) return;
+                tpTotal -= mejora.coste;
+                mejora.comprada = true;
+                if (siguienteId === 3) {
+                    for (const a of Object.values(ayudantes)) {
+                        a.despierta = true;
+                        a.tiempoRestante = 0;
+                        a.inicioDespierta = Date.now();
+                    }
+                }
+                actualizarInterfaz();
+                guardarProgreso();
+            });
+            boton.replaceWith(siguiente);
+        }
 
         if (id === 3) {
             for (const a of Object.values(ayudantes)) {
@@ -4201,6 +4506,11 @@ for (const id of Object.keys(ayudantes).map(Number)) {
 for (let id = 1; id <= obtenerCantidadEspecial(); id++) {
     ayudanteEspecial.ultimoDisparo[id] = Date.now();
     crearSpriteEspecial(id);
+}
+
+if (ayudanteApoyoComprado) {
+    ultimaCuracionApoyo = Date.now();
+    crearSpriteAyudanteApoyo();
 }
 
 if (alma) {
