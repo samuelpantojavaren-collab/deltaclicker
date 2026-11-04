@@ -522,8 +522,23 @@ body::before {
    MINI ALMAS NORMALES
    ========================================== */
 
+/* Rayos fijos de enlace entre los ayudantes exteriores e interiores. */
+.rayo-enlace-ayudante {
+    position: absolute;
+    z-index: 0;
+    height: 2px;
+    border: 0;
+    border-radius: 0;
+    background: #ff1744;
+    box-shadow: 0 0 3px #ff1744;
+    transform-origin: 0 50%;
+    pointer-events: none;
+    opacity: 0.9;
+}
+
 .mini-alma {
     position: absolute;
+    z-index: 1;
     width: 36px;
     height: 36px;
     padding: 0;
@@ -954,20 +969,6 @@ body::before {
    DAÑO RECIBIDO
    ========================================== */
 
-.alma-enemiga.recibiendo-dano {
-    animation: sacudida-enemigo 0.16s steps(2, end);
-}
-
-.alma-enemiga.recibiendo-dano .alma-enemiga-forma {
-    background: #fff;
-    filter: drop-shadow(0 0 12px #fff);
-}
-
-.alma-enemiga.recibiendo-dano .alma-enemiga-forma::before,
-.alma-enemiga.recibiendo-dano .alma-enemiga-forma::after {
-    background: #fff;
-}
-
 @keyframes sacudida-enemigo {
     0%, 100% {
         margin-left: 0;
@@ -1135,7 +1136,7 @@ body::before {
     animation: none !important;
 }
 
-/* Indicadores de ataque: rojo intenso, punteado y parpadeante, sin líneas gruesas */
+/* Indicadores de ataque: usan el color real del proyectil anunciado. */
 .indicador-ataque-linea {
     display: block;
     height: 2px;
@@ -1143,12 +1144,14 @@ body::before {
     z-index: 2147483000 !important;
     background: repeating-linear-gradient(
         to right,
-        #ff0015 0 4px,
+        var(--indicador-color, #ff0015) 0 4px,
         transparent 4px 7px
     );
     border: 0;
     border-radius: 1px;
-    box-shadow: 0 0 5px #ff0015, 0 0 12px rgba(255, 0, 21, 0.98), 0 0 20px rgba(255, 0, 21, 0.72);
+    box-shadow: 0 0 5px var(--indicador-color, #ff0015),
+        0 0 12px color-mix(in srgb, var(--indicador-color, #ff0015) 98%, transparent),
+        0 0 20px color-mix(in srgb, var(--indicador-color, #ff0015) 72%, transparent);
     animation: parpadeo-linea-ataque 0.18s steps(2, end) infinite;
 }
 .indicador-ataque-punto, .indicador-ataque-origen {
@@ -1157,10 +1160,12 @@ body::before {
     margin-left: -3.5px;
     margin-top: -3.5px;
     box-sizing: border-box;
-    border: 2px solid #ff0015;
+    border: 2px solid var(--indicador-color, #ff0015);
     border-radius: 50%;
-    background: rgba(255, 0, 21, 0.8);
-    box-shadow: 0 0 6px #ff0015, 0 0 13px rgba(255, 0, 21, 0.98), 0 0 20px rgba(255, 0, 21, 0.75);
+    background: color-mix(in srgb, var(--indicador-color, #ff0015) 80%, transparent);
+    box-shadow: 0 0 6px var(--indicador-color, #ff0015),
+        0 0 13px color-mix(in srgb, var(--indicador-color, #ff0015) 98%, transparent),
+        0 0 20px color-mix(in srgb, var(--indicador-color, #ff0015) 75%, transparent);
     pointer-events: none;
     z-index: 2147483001 !important;
     animation: parpadeo-marca-ataque 0.18s steps(2, end) infinite;
@@ -1171,8 +1176,10 @@ body::before {
     margin-left: -7.5px;
     margin-top: -7.5px;
     border-width: 1.5px;
-    background: rgba(255, 0, 21, 0.5);
-    box-shadow: 0 0 7px #ff0015, 0 0 15px rgba(255, 0, 21, 0.98), 0 0 24px rgba(255, 0, 21, 0.8);
+    background: color-mix(in srgb, var(--indicador-color, #ff0015) 50%, transparent);
+    box-shadow: 0 0 7px var(--indicador-color, #ff0015),
+        0 0 15px color-mix(in srgb, var(--indicador-color, #ff0015) 98%, transparent),
+        0 0 24px color-mix(in srgb, var(--indicador-color, #ff0015) 80%, transparent);
 }
 @keyframes parpadeo-linea-ataque {
     0%, 100% { opacity: 1; }
@@ -2153,6 +2160,13 @@ button:focus-visible {
     text-shadow: 0 0 7px rgba(255, 50, 50, 0.35);
 }
 
+/* Aviso de jefe: el borde del cuadro de batalla parpadea cinco veces. */
+#boton-click.alerta-jefe-rojo {
+    border-color: #ff1010 !important;
+    box-shadow: 0 0 9px #ff0000, 0 0 22px #ff0000, 0 0 38px #ff000088,
+        inset 0 0 15px #ff000044 !important;
+}
+
 /* Corrección de visibilidad de enemigos en DELTACLICKER 2.3 */
 #zona-enemigos > .alma-enemiga { display: flex !important; visibility: visible !important; opacity: 1 !important; }
 #zona-enemigos > .alma-enemiga .alma-enemiga-forma { display: block !important; visibility: visible !important; opacity: 1 !important; }
@@ -2182,9 +2196,41 @@ button:focus-visible {
     background: #770000;
 }
 
+/* Modo sepia: botón fijo inmediatamente debajo del modo extremo. */
+#boton-modo-sepia {
+    position: fixed;
+    top: 106px;
+    right: 20px;
+    z-index: 20;
+    padding: 10px 12px;
+    background: #180000;
+    border: 2px solid var(--rojo);
+    color: var(--rojo);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+}
+
+#boton-modo-sepia:hover {
+    background: #4a0000;
+    box-shadow: 0 0 12px #ff000088;
+}
+
+#boton-modo-sepia:active {
+    background: #770000;
+}
+
 @media (max-width: 600px) {
     #boton-modo-extremo {
         top: 55px;
+        right: 12px;
+        padding: 8px 9px;
+        font-size: 6px;
+    }
+
+    #boton-modo-sepia {
+        top: 96px;
         right: 12px;
         padding: 8px 9px;
         font-size: 6px;
@@ -2798,3 +2844,441 @@ button:focus-visible {
 }
 #zona-ayudantes .mini-alma-apoyo .mini-alma-forma::before { top: -6px !important; left: 0 !important; }
 #zona-ayudantes .mini-alma-apoyo .mini-alma-forma::after { left: -6px !important; top: 0 !important; }
+
+
+/* DELTACLICKER 2.4: barras de vida compactas y legibles */
+.vida-enemigo.barra-vida-enemigo {
+    display: block !important;
+    width: 64px !important;
+    height: 6px !important;
+    min-height: 6px !important;
+    padding: 0 !important;
+    margin: 2px auto !important;
+    overflow: hidden !important;
+    border: 1px solid #d7d7d7 !important;
+    border-radius: 2px !important;
+    background: #171717 !important;
+    box-shadow: none !important;
+}
+.vida-enemigo-relleno {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--color-enemigo, #fff);
+    box-shadow: none;
+    transition: width .12s linear;
+}
+.alma-jefe .vida-enemigo.barra-vida-enemigo { width: 78px !important; height: 7px !important; }
+.barra-jefe-inferior {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: 99990;
+    width: min(520px, 82vw);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    pointer-events: none;
+    text-align: center;
+    color: #fff;
+    font: 700 10px/1.3 monospace;
+    text-shadow: 0 1px 3px #000;
+}
+.nombre-jefe-inferior { letter-spacing: 2px; color: #fff; }
+.fondo-vida-jefe-inferior {
+    height: 12px;
+    padding: 2px;
+    border: 1px solid #fff;
+    background: #171717;
+    box-shadow: 0 0 5px #fff5;
+}
+.relleno-vida-jefe-inferior {
+    height: 100%;
+    width: 100%;
+    background: #ff3030;
+    transition: width .12s linear;
+}
+.texto-vida-jefe-inferior { font-size: 9px; }
+.camino-hexagonial {
+    position: absolute;
+    left: 20%; top: 20%; width: 60%; height: 60%;
+    box-sizing: border-box;
+    border: 2px solid #fff;
+    opacity: .9;
+    pointer-events: none;
+    z-index: 1;
+    box-shadow: 0 0 4px #fff;
+}
+.laser-hexagonial {
+    position: fixed;
+    height: 7px;
+    margin-top: -3px;
+    transform-origin: 0 50%;
+    background: #fff;
+    box-shadow: 0 0 5px #fff, 0 0 12px #fff;
+    opacity: .95;
+    z-index: 99989;
+    pointer-events: none;
+}
+#boton-click.cuadro-morado {
+    border-color: #b000ff !important;
+    box-shadow: 0 0 7px #b000ff, 0 0 18px #7800ff, inset 0 0 12px #b000ff44 !important;
+}
+#boton-click.cuadro-morado:active { box-shadow: 0 0 14px #d000ff, 0 0 28px #9000ff !important; }
+/* El modo sepia recolorea el neón, pero conserva sus brillos y sombras. */
+body.modo-sepia, body.modo-sepia * {
+    filter: sepia(1) saturate(1.45) !important;
+}
+body.modo-sepia { background: #111 !important; }
+#final-destello-overlay .reset-final-destello {
+    position: absolute;
+    z-index: 5;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 14px 22px;
+    color: #111;
+    background: #fff;
+    border: 2px solid #111;
+    font: 800 12px monospace;
+    cursor: pointer;
+}
+
+/* Hexagonial: aspecto blanco, acorde con su recorrido. */
+.jefe-enemigo.hexagonial .alma-enemiga-forma {
+    --color-enemigo: #fff !important;
+    background: #fff !important;
+    filter: drop-shadow(0 0 5px #fff) drop-shadow(0 0 13px #fff) !important;
+}
+.jefe-enemigo.hexagonial .alma-enemiga-forma::before,
+.jefe-enemigo.hexagonial .alma-enemiga-forma::after {
+    background: #fff !important;
+}
+
+/* La barra inferior sustituye la barra diminuta que antes acompañaba al jefe. */
+.jefe-enemigo .nombre-enemigo,
+.jefe-enemigo .vida-enemigo,
+.jefe-enemigo .texto-vida-enemigo {
+    display: none !important;
+}
+.barra-jefe-inferior {
+    bottom: 80px;
+}
+.relleno-vida-jefe-inferior {
+    background: #ff3030 !important;
+}
+.camino-hexagonial {
+    left: 50%;
+    top: 50%;
+    width: min(60vw, 60vh);
+    height: min(60vw, 60vh);
+    transform: translate(-50%, -50%);
+}
+.camino-hexagonial {
+    width: min(75vw, 60vh);
+    height: min(75vw, 60vh);
+}
+
+
+/* Los enemigos invocados por Hexagonial conservan esta silueta al pasar a la órbita normal. */
+.alma-enemiga.enemigo-hexagonial .alma-enemiga-forma {
+    transform: none !important;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%) !important;
+    border-radius: 0 !important;
+}
+.alma-enemiga.enemigo-hexagonial .alma-enemiga-forma::before,
+.alma-enemiga.enemigo-hexagonial .alma-enemiga-forma::after {
+    display: none !important;
+}
+
+/* Hexagonial tiene una silueta hexagonal real de seis lados (no el rombo base). */
+.jefe-enemigo.hexagonial .alma-enemiga-forma {
+    width: 34px !important;
+    height: 34px !important;
+    transform: none !important;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%) !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    filter: drop-shadow(0 0 5px #fff) drop-shadow(0 0 13px #fff) !important;
+}
+.jefe-enemigo.hexagonial .alma-enemiga-forma::before,
+.jefe-enemigo.hexagonial .alma-enemiga-forma::after {
+    display: none !important;
+    content: none !important;
+}
+
+
+/* Modo desarrollador: acceso compacto junto a RESET. */
+#boton-modo-desarrollador {
+    position: fixed; top: 20px; right: 132px; z-index: 30;
+    width: 34px; height: 34px; padding: 0;
+    background: #180000; border: 2px solid var(--rojo); color: var(--rojo);
+    font: 10px 'Press Start 2P', monospace; cursor: pointer;
+    text-shadow: 0 0 7px #ff0000; box-shadow: 0 0 8px #ff000055;
+}
+#boton-modo-desarrollador:hover { background: #4a0000; box-shadow: 0 0 12px #ff000088; }
+#panel-modo-desarrollador {
+    position: fixed; top: 62px; right: 20px; z-index: 30;
+    display: flex; gap: 6px; align-items: center; padding: 8px;
+    background: #080000; border: 1px solid var(--rojo);
+    box-shadow: 0 0 12px #ff000066;
+}
+#panel-modo-desarrollador[hidden] { display: none; }
+#entrada-codigo-desarrollador {
+    width: min(260px, 58vw); min-width: 120px; padding: 9px 8px;
+    background: #000; border: 1px solid var(--rojo); color: #fff;
+    outline: none; font: 9px monospace;
+}
+#entrada-codigo-desarrollador::placeholder { color: #888; }
+#panel-modo-desarrollador button {
+    padding: 9px 8px; background: #180000; border: 1px solid var(--rojo);
+    color: var(--rojo); font: 7px 'Press Start 2P', monospace; cursor: pointer;
+}
+@media (max-width: 600px) {
+    #boton-modo-desarrollador { top: 16px; right: 105px; width: 30px; height: 30px; }
+    #panel-modo-desarrollador { top: 55px; right: 12px; }
+}
+
+/* Botón para adelantar la siguiente oleada */
+.aviso-oleadas {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    pointer-events: none;
+}
+.aviso-oleadas-texto { display: block; }
+.boton-iniciar-oleada {
+    pointer-events: auto;
+    border: 1px solid #ff4545;
+    border-radius: 0;
+    padding: 5px 9px;
+    background: #160707;
+    color: #ff4545;
+    font: 800 10px/1.2 monospace;
+    letter-spacing: .6px;
+    cursor: pointer;
+    text-shadow: 0 0 6px #ff2020;
+    box-shadow: 0 0 7px #ff202055;
+}
+.boton-iniciar-oleada:hover:not(:disabled) {
+    background: #350909;
+    box-shadow: 0 0 11px #ff2020aa;
+}
+.boton-iniciar-oleada[hidden] { display: none !important; }
+
+/* Hexagonial debe destacar claramente como jefe, también en pantallas pequeñas. */
+.jefe-enemigo.hexagonial {
+    width: 132px !important;
+    min-height: 132px !important;
+    z-index: 20 !important;
+}
+.jefe-enemigo.hexagonial .alma-enemiga-forma {
+    width: 82px !important;
+    height: 82px !important;
+    background: #fff !important;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%) !important;
+    filter:
+        drop-shadow(0 0 7px #fff)
+        drop-shadow(0 0 18px #fff)
+        drop-shadow(0 0 34px #bdeaff)
+        drop-shadow(0 0 52px #75cfff) !important;
+    animation: pulso-hexagonial-jefe 1.15s ease-in-out infinite !important;
+}
+@keyframes pulso-hexagonial-jefe {
+    0%, 100% { filter: drop-shadow(0 0 7px #fff) drop-shadow(0 0 18px #fff) drop-shadow(0 0 34px #bdeaff) drop-shadow(0 0 52px #75cfff); }
+    50% { filter: drop-shadow(0 0 12px #fff) drop-shadow(0 0 26px #fff) drop-shadow(0 0 46px #bdeaff) drop-shadow(0 0 68px #75cfff); }
+}
+
+
+/* Hexagonial: silueta ancha y contundente, con presencia de jefe. */
+.jefe-enemigo.hexagonial {
+    width: 218px !important;
+    height: 166px !important;
+    min-height: 166px !important;
+    gap: 10px !important;
+    z-index: 25 !important;
+}
+.jefe-enemigo.hexagonial .alma-enemiga-forma {
+    width: 126px !important;
+    height: 88px !important;
+    min-width: 126px !important;
+    background: #fff !important;
+    clip-path: polygon(18% 0%, 82% 0%, 100% 50%, 82% 100%, 18% 100%, 0% 50%) !important;
+    filter: drop-shadow(0 0 9px #fff) drop-shadow(0 0 22px #fff) drop-shadow(0 0 42px #75cfff) !important;
+    animation: pulso-hexagonial-jefe 1.15s ease-in-out infinite !important;
+}
+.camino-hexagonial {
+    box-sizing: border-box !important;
+}
+
+
+/* Los enemigos hexagonales invocados deben distinguirse mejor sin parecer jefes. */
+.alma-enemiga.enemigo-hexagonial .alma-enemiga-forma {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+}
+
+/* IMPACTO NEÓN: solo crece y se retrae el brillo original.
+   No cambia el relleno, el color ni la silueta de ninguna alma. */
+
+/* El alma del jugador conserva su color según el modo activo. */
+.alma.impacto-neon {
+    animation: expansion-neon-jugador .32s ease-in-out 1 !important;
+}
+@keyframes expansion-neon-jugador {
+    0%, 100% {
+        filter: drop-shadow(0 0 4px var(--rojo-brillo))
+                drop-shadow(0 0 9px var(--rojo-brillo))
+                drop-shadow(0 0 16px var(--rojo-brillo));
+    }
+    50% {
+        filter: drop-shadow(0 0 10px var(--rojo-brillo))
+                drop-shadow(0 0 22px var(--rojo-brillo))
+                drop-shadow(0 0 36px var(--rojo-brillo))
+                drop-shadow(0 0 48px var(--rojo-brillo));
+    }
+}
+.alma.alma-dorada.impacto-neon,
+.alma.dorada.impacto-neon {
+    animation-name: expansion-neon-dorado !important;
+}
+@keyframes expansion-neon-dorado {
+    0%, 100% {
+        filter: drop-shadow(0 0 5px var(--dorado))
+                drop-shadow(0 0 12px #ffbf00)
+                drop-shadow(0 0 24px #ff9500);
+    }
+    50% {
+        filter: drop-shadow(0 0 11px var(--dorado))
+                drop-shadow(0 0 26px #ffbf00)
+                drop-shadow(0 0 44px #ff9500)
+                drop-shadow(0 0 58px #ff9500);
+    }
+}
+.alma.alma-verde.impacto-neon {
+    animation-name: expansion-neon-verde !important;
+}
+@keyframes expansion-neon-verde {
+    0%, 100% {
+        filter: drop-shadow(0 0 5px #35ff8a)
+                drop-shadow(0 0 13px #00ff66)
+                drop-shadow(0 0 22px #00aa55);
+    }
+    50% {
+        filter: drop-shadow(0 0 11px #35ff8a)
+                drop-shadow(0 0 26px #00ff66)
+                drop-shadow(0 0 42px #00aa55)
+                drop-shadow(0 0 56px #00aa55);
+    }
+}
+
+/* Enemigos normales: se mantiene su pulso de tamaño y se añade un pulso
+   independiente al filtro de neón. No hay background/filter estáticos
+   con !important que bloqueen los fotogramas de la animación. */
+.alma-enemiga.recibiendo-dano .alma-enemiga-forma {
+    animation-name: pulso-enemigo, expansion-neon-enemigo !important;
+    animation-duration: var(--duracion-pulso-enemigo, .8s), .32s !important;
+    animation-timing-function: ease-in-out, ease-in-out !important;
+    animation-iteration-count: infinite, 1 !important;
+}
+@keyframes expansion-neon-enemigo {
+    0%, 100% {
+        filter: drop-shadow(0 0 4px var(--color-enemigo, var(--texto)))
+                drop-shadow(0 0 10px var(--color-enemigo, var(--texto)));
+    }
+    50% {
+        filter: drop-shadow(0 0 10px var(--color-enemigo, var(--texto)))
+                drop-shadow(0 0 24px var(--color-enemigo, var(--texto)))
+                drop-shadow(0 0 40px var(--color-enemigo, var(--texto)))
+                drop-shadow(0 0 52px var(--color-enemigo, var(--texto)));
+    }
+}
+
+/* Minijefes conservan su neón naranja original. */
+.jefe-enemigo.recibiendo-dano:not(.hexagonial) .alma-enemiga-forma {
+    animation-name: pulso-enemigo, expansion-neon-minijefe !important;
+    animation-duration: .8s, .32s !important;
+    animation-timing-function: ease-in-out, ease-in-out !important;
+    animation-iteration-count: infinite, 1 !important;
+}
+@keyframes expansion-neon-minijefe {
+    0%, 100% {
+        filter: drop-shadow(0 0 6px #ff8800)
+                drop-shadow(0 0 16px #ff4400)
+                drop-shadow(0 0 28px #aa0000);
+    }
+    50% {
+        filter: drop-shadow(0 0 11px #ff8800)
+                drop-shadow(0 0 26px #ff4400)
+                drop-shadow(0 0 44px #aa0000)
+                drop-shadow(0 0 58px #aa0000);
+    }
+}
+
+/* Corruptos y abismales conservan sus tonos y halos característicos. */
+.alma-corrupta.recibiendo-dano .alma-enemiga-forma {
+    animation-name: pulso-enemigo, expansion-neon-corrupto !important;
+    animation-duration: .8s, .32s !important;
+    animation-timing-function: ease-in-out, ease-in-out !important;
+    animation-iteration-count: infinite, 1 !important;
+}
+@keyframes expansion-neon-corrupto {
+    0%, 100% {
+        filter: drop-shadow(0 0 5px #b000ff)
+                drop-shadow(0 0 12px #b000ff)
+                drop-shadow(0 0 20px #7000aa);
+    }
+    50% {
+        filter: drop-shadow(0 0 10px #b000ff)
+                drop-shadow(0 0 25px #b000ff)
+                drop-shadow(0 0 42px #7000aa)
+                drop-shadow(0 0 54px #7000aa);
+    }
+}
+.alma-abismal.recibiendo-dano:not(.jefe-enemigo) .alma-enemiga-forma {
+    animation-name: pulso-enemigo, expansion-neon-abismal !important;
+    animation-duration: .5s, .32s !important;
+    animation-timing-function: ease-in-out, ease-in-out !important;
+    animation-iteration-count: infinite, 1 !important;
+}
+@keyframes expansion-neon-abismal {
+    0%, 100% {
+        filter: drop-shadow(0 0 5px #ff3030)
+                drop-shadow(0 0 12px #ff0000)
+                drop-shadow(0 0 24px #990000);
+    }
+    50% {
+        filter: drop-shadow(0 0 10px #ff3030)
+                drop-shadow(0 0 25px #ff0000)
+                drop-shadow(0 0 42px #990000)
+                drop-shadow(0 0 54px #990000);
+    }
+}
+
+/* Hexagonial sigue siendo blanco/cian como siempre; al recibir daño
+   únicamente se expande y retrae ese mismo halo. */
+.jefe-enemigo.hexagonial.recibiendo-dano .alma-enemiga-forma {
+    animation-name: pulso-hexagonial-jefe, expansion-neon-hexagonial !important;
+    animation-duration: 1.15s, .32s !important;
+    animation-timing-function: ease-in-out, ease-in-out !important;
+    animation-iteration-count: infinite, 1 !important;
+    transform: none !important;
+}
+@keyframes expansion-neon-hexagonial {
+    0%, 100% {
+        filter: drop-shadow(0 0 7px #fff)
+                drop-shadow(0 0 18px #fff)
+                drop-shadow(0 0 34px #bdeaff)
+                drop-shadow(0 0 52px #75cfff);
+    }
+    50% {
+        filter: drop-shadow(0 0 13px #fff)
+                drop-shadow(0 0 30px #fff)
+                drop-shadow(0 0 50px #bdeaff)
+                drop-shadow(0 0 72px #75cfff);
+    }
+}
