@@ -16,23 +16,26 @@ const INTERVALO_GRUPO_OLEADA_MS = 10000;
 const GRUPOS_POR_OLEADA = 3; // Tres bloques por oleada para limitar su duración.
 const MAX_ESPECIALES = 4;
 const INTERVALO_ROBO = 5000;
-const INTERVALO_APARICION_MIN = 7000;
-const INTERVALO_APARICION_MAX = 12000;
+const INTERVALO_APARICION_MIN = 5000;
+const INTERVALO_APARICION_MAX = 10000;
+const MAX_ENEMIGOS_AMBIENTE = 3; // Fuera de oleada: pocos a la vez, de uno en uno.
 const DANIO_CLIC = 1;
 const COSTE_ESPECIAL = 15;
 const COSTE_AYUDANTE_APOYO = 1500;
 const COSTE_ALMA_VERDE = 100;
 const COSTE_ALMA_DORADA = 2500;
+const COSTE_ESCOPETA = 1000;
 const COSTE_DESTELLO = 1000000000;
-const COSTE_PARRY = 1000;
-const DURACION_PARRY = 500;
-const COOLDOWN_PARRY = 5000;
 const CURACION_ALMA_VERDE = 2;
+const COSTE_GROW_UP_APOYO = 2500;
+const DURACION_DASH = 250;
+const DISTANCIA_DASH = 90;
+const INTERVALO_ESTELA_DASH = 90;
 const VIDA_INICIAL = 100;
 const VIDA_MAXIMA = 150;
 const VIDA_POR_MEJORA = 10;
 const COSTES_VIDA = [50, 100, 200, 350, 500];
-const COSTES_DEFENSA = [100, 200, 400, 800, 1600];
+const COSTES_DEFENSA = [100, 200, 400, 800, 1600, 3000, 5000, 8000, 12000, 20000];
 // Mejora permanente del cuadro de batalla (reintegrada porque no estaba presente en el ZIP recibido).
 const TAMANO_CAJA_BASE = 240;
 const AUMENTO_TAMANO_CAJA = 24;
@@ -51,12 +54,11 @@ let renacimientos = 0;
 
 let almaVerdeDesbloqueada = false;
 let almaDoradaDesbloqueada = false;
+let escopetaDesbloqueada = false;
 let ayudanteApoyoComprado = false;
+let growUpApoyoComprado = false;
 let ultimaCuracionApoyo = 0;
 let almaActiva = "roja";
-let parryDesbloqueado = false;
-let parryHasta = 0;
-let parryCooldownHasta = 0;
 let ultimaCuracionVerde = 0;
 let bloqueoJefesHasta = 0;
 let nivelVida = 0;
@@ -65,6 +67,12 @@ let nivelTamanoCaja = 0;
 let vidaJugador = VIDA_INICIAL;
 let jugadorMuerto = false;
 let modoExtremo = false;
+let dashInicio = 0;
+let dashHasta = 0;
+let dashSiguienteEstela = 0;
+let dashOrigen = null;
+let dashDestino = null;
+let ultimaDireccionMovimiento = { x: 0, y: -1 };
 
 let bossCount = 0;
 let jefesDerrotadosRun = 0;
@@ -77,6 +85,7 @@ let inicioOleadaAt = 0;
 let siguienteGrupoOleadaAt = 0;
 let gruposOleadaRestantes = 0;
 let siguienteSpawnPendienteAt = 0;
+let siguienteEnemigoAmbienteAt = 0;
 let nivelCuadroMorado = 0;
 let modoSepia = false;
 let ultimoDisparoEnemigo = 0;
@@ -88,6 +97,7 @@ let posicionJugador = { x: null, y: null };
 let posicionRaton = { x: null, y: null };
 
 let proyectilesJugador = [];
+const historialDisparosJugador = [];
 let proyectilesEnemigos = [];
 let jefe = null;
 let combateJefeGuardado = null;
@@ -167,7 +177,8 @@ const mejorasEsencia = {
     cosecha: { nivel: 0, precios: [50, 100, 175, 275, 400] },
     nucleo: { nivel: 0, precios: [75, 150, 250, 400, 600] },
     sinergia: { nivel: 0, precios: [100, 200, 350, 550, 800] },
-    segunda: { nivel: 0, precios: [250] }
+    segunda: { nivel: 0, precios: [250] },
+    danio: { nivel: 0, precios: [100, 200, 350, 550, 800, 1200, 1800, 2600, 4000, 6000] }
 };
 
 let sobrecargaInicio = 0;
@@ -196,13 +207,12 @@ function multiplicadorDificultad() {
 }
 
 function vidaEscalada(vidaBase) {
-    const multiplicadorExtremo = modoExtremo ? 2 : 1;
-    return Math.max(1, Math.ceil(vidaBase * multiplicadorDificultad() * multiplicadorExtremo));
+    return Math.max(1, Math.ceil(vidaBase * multiplicadorDificultad()));
 }
 
 function intervaloDisparoEnemigoActual() {
     return Math.max(250, INTERVALO_DISPARO_ENEMIGO /
-        (1 + jefesDerrotadosRun * 0.09) / (modoExtremo ? 1.5 : 1));
+        (1 + jefesDerrotadosRun * 0.09));
 }
 
 function intervaloDisparoJefeActual() {
@@ -214,7 +224,7 @@ const TIPOS_ENEMIGOS = {
     errante: {
         nombre: "ALMA ERRANTE",
         clase: "alma-errante",
-        vida: 3,
+        vida: 16,
         recompensa: 5,
         roboInicial: 1,
         roboTP: 1
@@ -222,7 +232,7 @@ const TIPOS_ENEMIGOS = {
     corrupta: {
         nombre: "ALMA CORRUPTA",
         clase: "alma-corrupta",
-        vida: 6,
+        vida: 32,
         recompensa: 15,
         roboInicial: 2,
         roboTP: 3
@@ -230,7 +240,7 @@ const TIPOS_ENEMIGOS = {
     abismal: {
         nombre: "ALMA ABISMAL",
         clase: "alma-abismal",
-        vida: 24,
+        vida: 60,
         recompensa: 35,
         roboInicial: 5,
         roboTP: 5
@@ -238,7 +248,7 @@ const TIPOS_ENEMIGOS = {
     sanadora: {
         nombre: "ALMA SANADORA",
         clase: "alma-sanadora",
-        vida: 14,
+        vida: 42,
         recompensa: 45,
         roboInicial: 0,
         roboTP: 0
@@ -275,13 +285,11 @@ const contador =
 
 const boton = document.getElementById("boton-click");
 const alma = document.querySelector(".alma");
-const temporizadorParry = document.getElementById("temporizador-parry");
 // Separar el alma del botón para poder moverla independientemente.
 if (boton && alma) {
     const zonaJuego = boton.closest(".juego") || document.body;
 
     zonaJuego.appendChild(alma);
-    if (temporizadorParry) zonaJuego.appendChild(temporizadorParry);
 
     Object.assign(alma.style, {
         position: "absolute",
@@ -348,7 +356,7 @@ function desbloquearTodasLasMejorasDebug() {
     ayudanteApoyoComprado = true;
     almaVerdeDesbloqueada = true;
     almaDoradaDesbloqueada = true;
-    parryDesbloqueado = true;
+    escopetaDesbloqueada = true;
     nivelVida = COSTES_VIDA.length;
     nivelDefensa = COSTES_DEFENSA.length;
     nivelTamanoCaja = COSTES_TAMANO_CAJA.length;
@@ -371,10 +379,29 @@ function desbloquearTodasLasMejorasDebug() {
 }
 
 function invocarHexagonialDebug() {
-    if (jefe || oleadaActiva || enemigos.length > 0 || jugadorMuerto || juegoFinalizado) {
-        mostrarAvisoRobo("NO SE PUEDE INVOCAR A HEXAGONIAL DURANTE OTRO COMBATE.");
+    if (jugadorMuerto || juegoFinalizado) {
+        mostrarAvisoRobo("NO SE PUEDE INVOCAR A HEXAGONIAL AHORA.");
         return false;
     }
+    if (jefe) {
+        mostrarAvisoRobo("YA HAY UN JEFE EN COMBATE.");
+        return false;
+    }
+
+    // Limpia oleada/enemigos para poder forzar el combate de prueba.
+    if (oleadaActiva || enemigos.length > 0) {
+        oleadaActiva = false;
+        enemigosPendientesOleada = 0;
+        limpiarCombate();
+    }
+
+    // Asegura Alma Dorada para poder pelear en el combate de jefes.
+    if (!almaDoradaDesbloqueada) {
+        almaDoradaDesbloqueada = true;
+        programarSiguienteEnemigo();
+    }
+
+    cancelarAlertaJefe();
     crearJefe(true);
     return jefe?.tipo === "hexagonial";
 }
@@ -386,7 +413,9 @@ function ejecutarCodigoDesarrollador(codigo) {
         "1M TP": () => { tpTotal += 1_000_000; },
         "1M ESENCIA": () => { esencia += 1_000_000; },
         "TODAS LAS MEJORAS": desbloquearTodasLasMejorasDebug,
-        "INVOCAR HEXAGONIAL": invocarHexagonialDebug
+        "INVOCAR HEXAGONIAL": invocarHexagonialDebug,
+        "HEXAGONIAL": invocarHexagonialDebug,
+        "SPAWN HEXAGONIAL": invocarHexagonialDebug
     };
     const accion = codigos[clave];
     if (!accion) {
@@ -394,7 +423,11 @@ function ejecutarCodigoDesarrollador(codigo) {
         return;
     }
     const resultado = accion();
-    if (clave === "INVOCAR HEXAGONIAL" && resultado === false) return;
+    const esInvocarHex =
+        clave === "INVOCAR HEXAGONIAL" ||
+        clave === "HEXAGONIAL" ||
+        clave === "SPAWN HEXAGONIAL";
+    if (esInvocarHex && resultado === false) return;
     actualizarInterfaz();
     guardarProgreso();
     const mensajes = {
@@ -402,7 +435,9 @@ function ejecutarCodigoDesarrollador(codigo) {
         "1M TP": "+1.000.000 TP AÑADIDOS.",
         "1M ESENCIA": "+1.000.000 ESENCIAS AÑADIDAS.",
         "TODAS LAS MEJORAS": "¡TODAS LAS MEJORAS Y DESBLOQUEOS ACTIVADOS!",
-        "INVOCAR HEXAGONIAL": "¡HEXAGONIAL HA SIDO INVOCADO!"
+        "INVOCAR HEXAGONIAL": "¡HEXAGONIAL HA SIDO INVOCADO!",
+        "HEXAGONIAL": "¡HEXAGONIAL HA SIDO INVOCADO!",
+        "SPAWN HEXAGONIAL": "¡HEXAGONIAL HA SIDO INVOCADO!"
     };
     mostrarAvisoRobo(mensajes[clave]);
 }
@@ -472,8 +507,7 @@ function obtenerCantidadEspecial() {
 }
 
 function maxVida() {
-    // En modo extremo, la mejora de vida queda temporalmente inactiva.
-    const nivelVidaActivo = modoExtremo ? 0 : nivelVida;
+    const nivelVidaActivo = nivelVida;
     return Math.min(
         VIDA_MAXIMA,
         VIDA_INICIAL + nivelVidaActivo * VIDA_POR_MEJORA
@@ -481,8 +515,40 @@ function maxVida() {
 }
 
 function obtenerDefensa() {
-    if (modoExtremo) return 0;
-    return Math.min(0.5, nivelDefensa * 0.1);
+    // 10 niveles, máximo 62.5% de reducción.
+    // Así un disparo normal de 8 de daño queda en exactamente 3 al máximo.
+    return Math.min(0.625, nivelDefensa * 0.0625);
+}
+
+function obtenerDanioAlmaDorada() {
+    // Crecimiento más suave: cada 2 niveles de mejora ≈ +1 de daño.
+    // Nivel 0 → 1 | nivel 10 → 6 (antes llegaba a 11 y one-shooteaba todo).
+    return 1 + Math.floor(mejorasEsencia.danio.nivel * 0.5);
+}
+
+// Registra los disparos reales del jugador para adaptar la vida de Hexagonial
+// al daño y a la frecuencia de fuego que está utilizando.
+function registrarDisparoJugador(danio) {
+    const ahora = Date.now();
+    historialDisparosJugador.push({ ahora, danio: Math.max(1, numeroSeguro(danio, 1)) });
+    while (historialDisparosJugador.length > 120) historialDisparosJugador.shift();
+    while (historialDisparosJugador.length && ahora - historialDisparosJugador[0].ahora > 15000) {
+        historialDisparosJugador.shift();
+    }
+}
+
+function calcularVidaDinamicaHexagonial() {
+    const ahora = Date.now();
+    const recientes = historialDisparosJugador.filter(d => ahora - d.ahora <= 10000);
+    const danioMedio = recientes.length
+        ? recientes.reduce((total, d) => total + d.danio, 0) / recientes.length
+        : obtenerDanioAlmaDorada();
+    // Si aún no hay suficientes muestras, usa una frecuencia inicial prudente.
+    const frecuencia = recientes.length >= 2
+        ? Math.max(0.5, Math.min(20, (recientes.length - 1) / ((recientes[recientes.length - 1].ahora - recientes[0].ahora) / 1000 || 1)))
+        : 2.5;
+    // 40 segundos como punto medio del objetivo solicitado (35–45 s).
+    return Math.max(1, Math.ceil(danioMedio * frecuencia * 40));
 }
 
 function obtenerMultiplicador() {
@@ -662,16 +728,6 @@ function crearPanelesNuevos() {
         renacerBtn.type = "button";
         panel.appendChild(renacerBtn);
 
-        const extremo = crearElemento("button", "", "ACTIVAR MODO EXTREMO");
-        extremo.id = "boton-modo-extremo";
-        extremo.type = "button";
-        extremo.addEventListener("click", alternarModoExtremo);
-        if (botonReset && botonReset.parentNode) {
-            botonReset.insertAdjacentElement("afterend", extremo);
-        } else {
-            document.body.appendChild(extremo);
-        }
-
         panel.appendChild(
             crearElemento("h3", "", "MEJORAS PERMANENTES")
         );
@@ -742,7 +798,8 @@ function crearPanelesNuevos() {
             crearBotonMejoraEsencia("cosecha", "Cosecha de esencias", "Los enemigos sueltan esencias · +25% por nivel"),
             crearBotonMejoraEsencia("nucleo", "Núcleo de TP", "+10% TP por nivel"),
             crearBotonMejoraEsencia("sinergia", "Sinergia", "+15% recompensa de ayudantes normales por nivel"),
-            crearBotonMejoraEsencia("segunda", "Segunda oportunidad", "Recupera 35% de vida una vez por oleada · no funciona en modo extremo")
+            crearBotonMejoraEsencia("segunda", "Segunda oportunidad", "Recupera 35% de vida una vez por oleada"),
+            crearBotonMejoraEsencia("danio", "Potencia del Alma Dorada", "+1 daño cada 2 niveles")
         );
     }
 
@@ -760,6 +817,12 @@ function crearPanelesNuevos() {
         apoyo.type = "button";
         apoyo.addEventListener("click", comprarAyudanteApoyo);
         listaEspecial.appendChild(apoyo);
+
+        const growUp = crearElemento("button", "", `GROW UP del ayudante curativo · ${formatear(COSTE_GROW_UP_APOYO)} TP`);
+        growUp.id = "mejora-grow-up-apoyo";
+        growUp.type = "button";
+        growUp.addEventListener("click", comprarGrowUpApoyo);
+        listaEspecial.appendChild(growUp);
 
         const comprar = crearElemento(
             "button",
@@ -825,6 +888,12 @@ function crearPanelesNuevos() {
         dorada.addEventListener("click", comprarAlmaDorada);
         compras.appendChild(dorada);
 
+        const escopeta = crearElemento("button", "", `Disparo de escopeta (5 balas) · ${formatear(COSTE_ESCOPETA)} TP`);
+        escopeta.id = "comprar-escopeta";
+        escopeta.type = "button";
+        escopeta.addEventListener("click", comprarEscopeta);
+        compras.appendChild(escopeta);
+
         panelAlmas.appendChild(crearElemento("h3", "", "MEJORAS DE ALMA Y COMBATE"));
         const combate = crearElemento("div", "lista-mejoras-alma");
         combate.id = "mejoras-alma";
@@ -848,11 +917,6 @@ function crearPanelesNuevos() {
         tamanoCaja.addEventListener("click", comprarMejoraTamanoCaja);
         combate.appendChild(tamanoCaja);
 
-        const parry = crearElemento("button", "", "Desbloquear Parry · 1.000 Esencias");
-        parry.id = "comprar-parry";
-        parry.type = "button";
-        parry.addEventListener("click", comprarParry);
-        combate.appendChild(parry);
 
         const morado = crearElemento("button", "", "Desbloquear cuadro morado · 500 Esencias");
         morado.id = "mejora-cuadro-morado";
@@ -864,9 +928,8 @@ function crearPanelesNuevos() {
         sepia.id = "boton-modo-sepia";
         sepia.type = "button";
         sepia.addEventListener("click", alternarModoSepia);
-        const botonExtremo = document.getElementById("boton-modo-extremo");
-        if (botonExtremo && botonExtremo.parentNode) {
-            botonExtremo.insertAdjacentElement("afterend", sepia);
+        if (botonReset && botonReset.parentNode) {
+            botonReset.insertAdjacentElement("afterend", sepia);
         } else {
             document.body.appendChild(sepia);
         }
@@ -953,15 +1016,16 @@ function cargarProgreso() {
 
         almaVerdeDesbloqueada = d.almaVerdeDesbloqueada === true;
         almaDoradaDesbloqueada = d.almaDoradaDesbloqueada === true;
+        escopetaDesbloqueada = d.escopetaDesbloqueada === true;
         ayudanteApoyoComprado = d.ayudanteApoyoComprado === true;
+        growUpApoyoComprado = ayudanteApoyoComprado && d.growUpApoyoComprado === true;
         ultimaCuracionApoyo = ayudanteApoyoComprado ? Date.now() : 0;
-        parryDesbloqueado = d.parryDesbloqueado === true;
-        modoExtremo = d.modoExtremo === true;
+        modoExtremo = false; // modo extremo eliminado
         nivelCuadroMorado = d.nivelCuadroMorado === 1 ? 1 : 0;
         modoSepia = d.modoSepia === true;
 
         nivelVida = Math.min(5, numeroSeguro(d.nivelVida));
-        nivelDefensa = Math.min(5, numeroSeguro(d.nivelDefensa));
+        nivelDefensa = Math.min(COSTES_DEFENSA.length, numeroSeguro(d.nivelDefensa));
         nivelTamanoCaja = Math.min(
             COSTES_TAMANO_CAJA.length,
             Math.floor(numeroSeguro(d.nivelTamanoCaja))
@@ -1063,11 +1127,6 @@ function cargarProgreso() {
             }
         }
 
-        // En modo extremo, vida y defensa quedan temporalmente inactivas.
-        // Sus niveles comprados se conservan para restaurarlos al desactivarlo.
-        if (modoExtremo) {
-            vidaJugador = Math.min(vidaJugador, maxVida());
-        }
     } catch (e) {
         console.error("Error al cargar la partida:", e);
     }
@@ -1103,9 +1162,10 @@ function guardarProgreso() {
             segundaOportunidadUsadaOleada,
             almaVerdeDesbloqueada,
             almaDoradaDesbloqueada,
+            escopetaDesbloqueada,
             ayudanteApoyoComprado,
-            parryDesbloqueado,
-            modoExtremo,
+            growUpApoyoComprado,
+            modoExtremo: false,
             nivelCuadroMorado,
             modoSepia,
             nivelVida,
@@ -1183,7 +1243,7 @@ function procesarBarraTP() {
 function darRecompensa(cantidadBase = 1) {
     if (jugadorMuerto || juegoFinalizado) return;
 
-    const cantidad = cantidadBase * obtenerMultiplicador() * (modoExtremo ? 2 : 1) * multiplicadorSobrecarga();
+    const cantidad = cantidadBase * obtenerMultiplicador() * 1 * multiplicadorSobrecarga();
 
     clicks += cantidad;
     tpBarra += cantidad * multiplicadorNucleoTP();
@@ -1198,7 +1258,7 @@ function darTP(cantidad, contarParaJefe = true) {
         return;
     }
 
-    cantidad = cantidad * (modoExtremo ? 2 : 1) * multiplicadorNucleoTP() * multiplicadorSobrecarga();
+    cantidad = cantidad * 1 * multiplicadorNucleoTP() * multiplicadorSobrecarga();
     tpTotal += cantidad;
     tpGanadoRun += cantidad;
     if (contarParaJefe) registrarTPParaEventos(cantidad);
@@ -1433,6 +1493,20 @@ function comprarAyudanteApoyo() {
     guardarProgreso();
 }
 
+function comprarGrowUpApoyo() {
+    if (!ayudanteApoyoComprado || growUpApoyoComprado) return;
+    if (tpTotal < COSTE_GROW_UP_APOYO) {
+        return mostrarAvisoRobo(`Necesitas ${formatear(COSTE_GROW_UP_APOYO)} TP para mejorar el Ayudante de apoyo.`);
+    }
+    tpTotal -= COSTE_GROW_UP_APOYO;
+    growUpApoyoComprado = true;
+    crearSpriteAyudanteApoyo();
+    colocarSpriteAyudanteApoyo();
+    mostrarAvisoRobo("¡GROW UP! El ayudante curativo ha crecido y ahora cura 4 HP/s.");
+    actualizarInterfaz();
+    guardarProgreso();
+}
+
 function comprarAlmaVerde() {
     if (almaVerdeDesbloqueada) return;
 
@@ -1460,6 +1534,24 @@ function comprarAlmaDorada() {
     mostrarAvisoRobo("¡ALMA DORADA DESBLOQUEADA PARA SIEMPRE!");
     programarSiguienteEnemigo();
 
+    actualizarInterfaz();
+    guardarProgreso();
+}
+
+function comprarEscopeta() {
+    if (escopetaDesbloqueada) return;
+
+    if (!almaDoradaDesbloqueada) {
+        return mostrarAvisoRobo("Primero debes desbloquear el Alma Dorada.");
+    }
+
+    if (tpTotal < COSTE_ESCOPETA) {
+        return mostrarAvisoRobo(`Necesitas ${formatear(COSTE_ESCOPETA)} TP para el disparo de escopeta.`);
+    }
+
+    tpTotal -= COSTE_ESCOPETA;
+    escopetaDesbloqueada = true;
+    mostrarAvisoRobo("¡DISPARO DE ESCOPETA DESBLOQUEADO! El Alma Dorada dispara 5 balas.");
     actualizarInterfaz();
     guardarProgreso();
 }
@@ -1570,7 +1662,7 @@ function mostrarFinalElDestello(animar = true) {
 }
 
 function comprarMejoraVida() {
-    if (modoExtremo || nivelVida >= COSTES_VIDA.length) return;
+    if (nivelVida >= COSTES_VIDA.length) return;
 
     const coste = COSTES_VIDA[nivelVida];
     if (esencia < coste) return;
@@ -1585,7 +1677,7 @@ function comprarMejoraVida() {
 }
 
 function comprarMejoraDefensa() {
-    if (modoExtremo || nivelDefensa >= COSTES_DEFENSA.length) return;
+    if (nivelDefensa >= COSTES_DEFENSA.length) return;
 
     const coste = COSTES_DEFENSA[nivelDefensa];
     if (esencia < coste) return;
@@ -1644,50 +1736,6 @@ function alternarModoSepia() {
     guardarProgreso();
 }
 
-function comprarParry() {
-    if (parryDesbloqueado) return;
-    if (esencia < COSTE_PARRY) {
-        mostrarAvisoRobo(`Necesitas ${formatear(COSTE_PARRY)} Esencias para desbloquear el Parry.`);
-        return;
-    }
-
-    esencia -= COSTE_PARRY;
-    parryDesbloqueado = true;
-    actualizarInterfaz();
-    guardarProgreso();
-    mostrarAvisoRobo("¡PARRY DESBLOQUEADO! ESPACIO: inmunidad durante 0,5 segundos · Recarga: 5 segundos.");
-}
-
-function activarParry() {
-    const ahora = Date.now();
-    if (!parryDesbloqueado || jugadorMuerto || juegoFinalizado || ahora < parryHasta || ahora < parryCooldownHasta) return false;
-
-    parryHasta = ahora + DURACION_PARRY;
-    parryCooldownHasta = ahora + COOLDOWN_PARRY;
-    // Congelar inmediatamente todos los controles durante el Parry.
-    teclasPulsadas.clear();
-    if (alma) alma.classList.add("parry-activo");
-    // El único indicador visible será la cuenta atrás de recarga bajo el alma.
-    return true;
-}
-
-function alternarModoExtremo() {
-    if (!modoExtremo) {
-        const seguro = confirm("¿Estás seguro que lo quieres activar?\n\nDuplicará la vida de los enemigos y el daño que te hagan. No podrás comprar mejoras de vida ni de defensa. Las mejoras de clic y disparo seguirán disponibles.\n\n¿Quieres activar el modo extremo?");
-        if (!seguro) return;
-        // Los niveles de vida y defensa se conservan; sus efectos se suspenden.
-        modoExtremo = true;
-        vidaJugador = Math.min(vidaJugador, maxVida());
-        actualizarDificultadEnemigosExistentes();
-        mostrarAvisoRobo("MODO EXTREMO ACTIVADO · RECOMPENSAS x2");
-    } else {
-        modoExtremo = false;
-        actualizarDificultadEnemigosExistentes();
-        mostrarAvisoRobo("MODO EXTREMO DESACTIVADO");
-    }
-    actualizarInterfaz();
-    guardarProgreso();
-}
 
 function renacer() {
     if (juegoFinalizado) return;
@@ -1697,7 +1745,7 @@ function renacer() {
         );
     }
 
-    const ganancia = Math.floor(tpGanadoRun / 10) * (modoExtremo ? 2 : 1);
+    const ganancia = Math.floor(tpGanadoRun / 10) * 1;
 
     if (!confirm(
         `¿Renacer ahora?\n\nRecibirás ${ganancia} Esencias.\n` +
@@ -1841,11 +1889,12 @@ function crearSpriteAyudanteApoyo() {
 
     let s = document.getElementById("mini-alma-apoyo");
     if (s) {
+        s.classList.toggle("crecido", growUpApoyoComprado);
         colocarSpriteAyudanteApoyo();
         return s;
     }
 
-    s = crearElemento("div", "mini-alma mini-alma-apoyo");
+    s = crearElemento("div", `mini-alma mini-alma-apoyo${growUpApoyoComprado ? " crecido" : ""}`);
     s.id = "mini-alma-apoyo";
     s.setAttribute("role", "img");
     s.setAttribute("aria-label", "Ayudante de apoyo: cura al jugador");
@@ -2144,10 +2193,11 @@ function asegurarAvisoOleadas() {
 function iniciarOleadaAhora() {
     if (
         !almaDoradaDesbloqueada || !proximaOleadaAt || oleadaActiva || jefe ||
-        enemigos.length > 0 || jugadorMuerto || juegoFinalizado || alertaJefeEnCurso
+        jugadorMuerto || juegoFinalizado || alertaJefeEnCurso
     ) return;
 
     // Adelantar la siguiente oleada concede una pequeña compensación de TP.
+    // Los enemigos ambientales no impiden iniciar la oleada.
     tpTotal += 100;
     proximaOleadaAt = Date.now();
     actualizarEnemigos();
@@ -2195,8 +2245,8 @@ function iniciarAlertaJefe() {
 }
 
 function cantidadEnemigosOleada() {
-    const minimo = modoExtremo ? 2 : 1;
-    const maximo = modoExtremo ? 4 : 3;
+    const minimo = 1;
+    const maximo = 3;
     return minimo + Math.floor(Math.random() * (maximo - minimo + 1));
 }
 
@@ -2215,8 +2265,14 @@ function programarSiguienteEnemigo() {
         textoAvisoOleadas.textContent = `OLEADA ${numeroOleada + 1} · EN ${segundos}s`;
     }
     if (botonIniciarOleada) {
-        botonIniciarOleada.hidden = oleadaActiva || !!jefe || enemigos.length > 0 || jugadorMuerto || juegoFinalizado || alertaJefeEnCurso;
+        // Los enemigos ambientales no bloquean el inicio de oleada.
+        botonIniciarOleada.hidden = oleadaActiva || !!jefe || jugadorMuerto || juegoFinalizado || alertaJefeEnCurso;
     }
+}
+
+function intervaloAparicionAmbiente() {
+    return INTERVALO_APARICION_MIN +
+        Math.random() * (INTERVALO_APARICION_MAX - INTERVALO_APARICION_MIN);
 }
 
 function crearBarraVida(contenedor, vida) {
@@ -2227,12 +2283,17 @@ function crearBarraVida(contenedor, vida) {
     contenedor.appendChild(relleno);
 }
 
-function crearEnemigo(forzarHexagonial = false) {
+function crearEnemigo(forzarHexagonial = false, ambiente = false) {
+    const limite = forzarHexagonial
+        ? MAX_ENEMIGOS
+        : ambiente
+            ? MAX_ENEMIGOS_AMBIENTE
+            : MAX_ENEMIGOS;
     if (
         juegoFinalizado ||
         !zonaEnemigos ||
-        (!oleadaActiva && !forzarHexagonial) ||
-        enemigos.length >= MAX_ENEMIGOS ||
+        (!oleadaActiva && !forzarHexagonial && !ambiente) ||
+        enemigos.length >= limite ||
         !almaDoradaDesbloqueada ||
         jugadorMuerto
     ) {
@@ -2262,7 +2323,7 @@ function crearEnemigo(forzarHexagonial = false) {
     const textoVida = crearElemento("span", "texto-vida-enemigo");
 
     el.append(forma, nombre, vida, textoVida);
-    const vidaMaxima = vidaEscalada(d.vida * (forzarHexagonial ? 1.15 : 1));
+    const vidaMaxima = vidaEscalada(d.vida * (forzarHexagonial ? 1.35 : 1));
     crearBarraVida(vida, vidaMaxima);
 
     const ahora = Date.now();
@@ -2511,7 +2572,26 @@ function actualizarEnemigos() {
     const now = Date.now();
     asegurarAvisoOleadas();
 
-    if (!oleadaActiva && !jefe && enemigos.length === 0 && proximaOleadaAt && now >= proximaOleadaAt) {
+    // Enemigos ambientales: fuera de oleada y sin jefe, aparecen de uno en uno
+    // cada 5–10 s (máx. MAX_ENEMIGOS_AMBIENTE a la vez). Las oleadas son el evento extra.
+    if (!oleadaActiva && !jefe && !alertaJefeEnCurso) {
+        if (!siguienteEnemigoAmbienteAt || siguienteEnemigoAmbienteAt < now - 60000) {
+            siguienteEnemigoAmbienteAt = now + intervaloAparicionAmbiente();
+        }
+        if (now >= siguienteEnemigoAmbienteAt) {
+            if (enemigos.length < MAX_ENEMIGOS_AMBIENTE && crearEnemigo(false, true)) {
+                siguienteEnemigoAmbienteAt = now + intervaloAparicionAmbiente();
+            } else {
+                // Campo lleno o falló el spawn: reintentar más tarde sin spamear.
+                siguienteEnemigoAmbienteAt = now + 2000;
+            }
+        }
+    } else {
+        siguienteEnemigoAmbienteAt = 0;
+    }
+
+    // La oleada puede empezar aunque haya enemigos ambientales en pantalla.
+    if (!oleadaActiva && !jefe && proximaOleadaAt && now >= proximaOleadaAt) {
         numeroOleada++;
         oleadaActiva = true;
         segundaOportunidadUsadaOleada = false;
@@ -2643,14 +2723,38 @@ function actualizarAtaquesContinuos() {
     }
     zonasLaserActivas = zonasLaserActivas.filter(z => {
         if (Date.now() >= z.fin || !z.elemento.isConnected) { z.elemento.remove(); return false; }
-        if (almaRect) {
-            const r = z.elemento.getBoundingClientRect();
-            if (almaRect.left < r.right && almaRect.right > r.left && almaRect.top < r.bottom && almaRect.bottom > r.top && Date.now() >= z.siguienteDanio) {
-                recibirDanio(z.danio); z.siguienteDanio = Date.now() + 650;
+        if (almaRect && Date.now() >= z.siguienteDanio) {
+            let enLaser = false;
+            // Láser de Hexagonial: colisión por distancia al segmento (haz rotado).
+            if (z.linea && Number.isFinite(z.x0) && Number.isFinite(z.y0) && Number.isFinite(z.x1) && Number.isFinite(z.y1)) {
+                const cx = (almaRect.left + almaRect.right) / 2;
+                const cy = (almaRect.top + almaRect.bottom) / 2;
+                enLaser = distanciaPuntoASegmento(cx, cy, z.x0, z.y0, z.x1, z.y1) <= (z.radio || 12);
+            } else {
+                // Láseres axis-aligned (cruz, etc.): AABB.
+                const r = z.elemento.getBoundingClientRect();
+                enLaser = almaRect.left < r.right && almaRect.right > r.left &&
+                    almaRect.top < r.bottom && almaRect.bottom > r.top;
+            }
+            if (enLaser) {
+                // Cada tick pasa por recibirDanio → aplica defensa y suelo mínimo.
+                recibirDanio(z.danio);
+                z.siguienteDanio = Date.now() + (z.intervaloDanio || 200);
             }
         }
         return true;
     });
+}
+
+// Distancia del punto (px,py) al segmento (x0,y0)-(x1,y1).
+function distanciaPuntoASegmento(px, py, x0, y0, x1, y1) {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len2 = dx * dx + dy * dy;
+    if (len2 <= 0) return Math.hypot(px - x0, py - y0);
+    let t = ((px - x0) * dx + (py - y0) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (x0 + t * dx), py - (y0 + t * dy));
 }
 
 // Jefes
@@ -2665,7 +2769,7 @@ function crearJefe(forzarHexagonial = false, restaurando = false) {
     if (!zonaEnemigos || jefe || jugadorMuerto || oleadaActiva || enemigos.length > 0) return;
     if (!restaurando) bossCount++;
     const esHexagonial = forzarHexagonial || bossCount === 1;
-    const vidaMax = vidaEscalada(esHexagonial ? 220 : 120 + jefesDerrotadosRun * 40);
+    const vidaMax = vidaEscalada(esHexagonial ? calcularVidaDinamicaHexagonial() : 120 + jefesDerrotadosRun * 40);
     const id = siguienteIdJefe++;
     const nombreJefe = esHexagonial ? "HEXAGONIAL" : `MINIJEFE ${bossCount - 1}`;
     const el = crearElemento("button", esHexagonial
@@ -2684,8 +2788,10 @@ function crearJefe(forzarHexagonial = false, restaurando = false) {
         id, numero: bossCount, tipo: esHexagonial ? "hexagonial" : "minijefe",
         vidaActual: vidaMax, vidaMaxima: vidaMax, elemento: el, vida, textoVida,
         ultimoDisparo: Date.now(), creado: Date.now(), angulo: 0, pasoCamino: 0,
-        siguientePaso: Date.now() + 1000, siguienteInvocacion: Date.now() + 4500,
-        ultimoAtaqueBorde: Date.now(), derrotado: false
+        // Primera esquina + ataque poco después de aparecer
+        siguientePaso: Date.now() + 500, siguienteInvocacion: Date.now() + 2000,
+        ultimoAtaqueBorde: Date.now(), derrotado: false, faseDosAnunciada: false,
+        siguienteCruzDiagonal: false
     };
     el.addEventListener("mousedown", event => event.preventDefault());
     el.addEventListener("click", event => {
@@ -2703,7 +2809,7 @@ function crearJefe(forzarHexagonial = false, restaurando = false) {
     crearHUDVidaJefe();
     actualizarVidaJefe();
     mostrarAvisoRobo(esHexagonial ? "¡HEXAGONIAL HA APARECIDO!" : `¡MINIJEFE ${bossCount - 1} APARECIÓ!`);
-    if (!restaurando && Math.random() < 0.30) crearEnemigoSanador();
+    if (!esHexagonial && !restaurando && Math.random() < 0.30) crearEnemigoSanador();
     if (proximaOleadaAt && proximaOleadaAt < Date.now() + 10000) proximaOleadaAt = Date.now() + 10000;
     guardarProgreso();
 }
@@ -2763,12 +2869,15 @@ function atacarJefe(danio = 1) {
         );
 
         jefe = null;
+        document.querySelectorAll(".aviso-laser-hexagonial, .laser-hexagonial").forEach(el => el.remove());
         document.getElementById("barra-jefe-inferior")?.remove();
         document.getElementById("camino-hexagonial")?.remove();
         enemigos = enemigos.filter(e => {
             if (e.enRutaHexagonial) {
-                // Sobreviven como enemigos normales, pero conservan la ruta
-                // cuadrada y el comportamiento de movimiento/disparo de Hexagonial.
+                // Se convierten visualmente en enemigos normales, conservando
+                // su recorrido cuadrado; al desaparecer el jefe recuperan
+                // automáticamente los patrones normales de ataque.
+                e.elemento.classList.remove("enemigo-hexagonial");
                 return true;
             }
             if (e.tipo === "sanadora") {
@@ -2793,27 +2902,210 @@ function atacarJefe(danio = 1) {
     }
 }
 
-function dispararLaserHexagonial() {
-    if (!jefe || !boton) return;
-    const origen = jefe.elemento.getBoundingClientRect();
-    const destino = boton.getBoundingClientRect();
-    const x0 = origen.left + origen.width / 2, y0 = origen.top + origen.height / 2;
-    const x1 = destino.left + destino.width / 2, y1 = destino.top + destino.height / 2;
+function obtenerTrayectoriaLaserHexagonial(origenRect, destinoRect) {
+    const x0 = origenRect.left + origenRect.width / 2;
+    const y0 = origenRect.top + origenRect.height / 2;
+    const x1 = destinoRect.left + destinoRect.width / 2;
+    const y1 = destinoRect.top + destinoRect.height / 2;
     const dx = x1 - x0, dy = y1 - y0;
     const longitud = Math.hypot(dx, dy) || 1;
     const ux = dx / longitud, uy = dy / longitud;
-    // Prolongar el rayo en la misma dirección hasta el borde de la pantalla,
-    // pasando por la posición del jugador en vez de detenerse allí.
     const limites = [];
     if (ux > 0) limites.push((window.innerWidth - x0) / ux);
     else if (ux < 0) limites.push((0 - x0) / ux);
     if (uy > 0) limites.push((window.innerHeight - y0) / uy);
     else if (uy < 0) limites.push((0 - y0) / uy);
-    const distancia = Math.min(...limites.filter(v => v >= 0));
+    return { x0, y0, dx, dy, distancia: Math.min(...limites.filter(v => v >= 0)) };
+}
+
+function crearHazLaserHexagonial(trayectoria) {
+    if (!jefe || jefe.tipo !== "hexagonial" || !boton) return;
+    // Si no se pasa trayectoria, se calcula al momento (compatibilidad).
+    if (!trayectoria) {
+        trayectoria = obtenerTrayectoriaLaserHexagonial(
+            jefe.elemento.getBoundingClientRect(), boton.getBoundingClientRect()
+        );
+    }
+    const ang = Math.atan2(trayectoria.dy, trayectoria.dx);
+    const x1 = trayectoria.x0 + Math.cos(ang) * trayectoria.distancia;
+    const y1 = trayectoria.y0 + Math.sin(ang) * trayectoria.distancia;
     const haz = crearElemento("div", "laser-hexagonial");
-    Object.assign(haz.style, { left: `${x0}px`, top: `${y0}px`, width: `${distancia}px`, transform: `rotate(${Math.atan2(dy, dx)}rad)` });
+    Object.assign(haz.style, {
+        left: `${trayectoria.x0}px`, top: `${trayectoria.y0}px`,
+        width: `${trayectoria.distancia}px`,
+        transform: `rotate(${ang}rad)`
+    });
     document.body.appendChild(haz);
-    zonasLaserActivas.push({ elemento: haz, fin: Date.now() + 650, siguienteDanio: Date.now(), danio: modoExtremo ? 18 : 9 });
+    // Daño continuo: ticks cada 180 ms mientras el alma esté sobre el haz.
+    // Base 10 de daño por tick (la defensa se aplica en recibirDanio).
+    // Duración corta ~0.5 s.
+    zonasLaserActivas.push({
+        elemento: haz,
+        fin: Date.now() + 500,
+        siguienteDanio: Date.now(),
+        intervaloDanio: 180,
+        danio: 10,
+        linea: true,
+        x0: trayectoria.x0,
+        y0: trayectoria.y0,
+        x1,
+        y1,
+        radio: 14
+    });
+}
+
+function limpiarLaseresHexagonial() {
+    document.querySelectorAll(".aviso-laser-hexagonial, .laser-hexagonial").forEach(el => el.remove());
+    zonasLaserActivas = zonasLaserActivas.filter(z => {
+        if (z.elemento && z.elemento.classList && z.elemento.classList.contains("laser-hexagonial")) {
+            z.elemento.remove();
+            return false;
+        }
+        return true;
+    });
+}
+
+function esFaseDosHexagonial() {
+    return !!(jefe && jefe.tipo === "hexagonial" && jefe.vidaMaxima > 0 &&
+        jefe.vidaActual / jefe.vidaMaxima <= 0.5);
+}
+
+function crearHazLaserDesdeSegmento(x0, y0, x1, y1) {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const distancia = Math.hypot(dx, dy) || 1;
+    const ang = Math.atan2(dy, dx);
+    const haz = crearElemento("div", "laser-hexagonial");
+    Object.assign(haz.style, {
+        left: `${x0}px`, top: `${y0}px`,
+        width: `${distancia}px`,
+        transform: `rotate(${ang}rad)`
+    });
+    document.body.appendChild(haz);
+    zonasLaserActivas.push({
+        elemento: haz,
+        fin: Date.now() + 500,
+        siguienteDanio: Date.now(),
+        intervaloDanio: 180,
+        danio: 10,
+        linea: true,
+        x0, y0, x1, y1,
+        radio: 14
+    });
+}
+
+function crearAvisoLaserDesdeSegmento(x0, y0, x1, y1) {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const distancia = Math.hypot(dx, dy) || 1;
+    const ang = Math.atan2(dy, dx);
+    const aviso = crearElemento("div", "aviso-laser-hexagonial");
+    Object.assign(aviso.style, {
+        left: `${x0}px`, top: `${y0}px`,
+        width: `${distancia}px`,
+        transform: `rotate(${ang}rad)`
+    });
+    document.body.appendChild(aviso);
+    return aviso;
+}
+
+function rayoHastaBordePantalla(cx, cy, dx, dy) {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const len = Math.hypot(dx, dy) || 1;
+    dx /= len;
+    dy /= len;
+    const candidatos = [];
+    if (dx > 0) candidatos.push((W - cx) / dx);
+    if (dx < 0) candidatos.push((0 - cx) / dx);
+    if (dy > 0) candidatos.push((H - cy) / dy);
+    if (dy < 0) candidatos.push((0 - cy) / dy);
+    const t = Math.min(...candidatos.filter(v => v > 0));
+    return [cx + dx * t, cy + dy * t];
+}
+
+function dispararLaserCruzHexagonial() {
+    if (!jefe || jefe.tipo !== "hexagonial" || !boton || jefe.avisoLaserActivo) return;
+    const idJefe = jefe.id;
+    limpiarLaseresHexagonial();
+
+    // Cruz centrada en el cuadro: alterna ortogonal ↔ diagonal.
+    const caja = boton.getBoundingClientRect();
+    const cx = caja.left + caja.width / 2;
+    const cy = caja.top + caja.height / 2;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    const usarDiagonal = !!jefe.siguienteCruzDiagonal;
+    jefe.siguienteCruzDiagonal = !usarDiagonal;
+
+    let segmentos;
+    if (!usarDiagonal) {
+        // Horizontal + vertical
+        segmentos = [
+            [0, cy, W, cy],
+            [cx, 0, cx, H]
+        ];
+    } else {
+        // Diagonales (↘ y ↗) a través del centro del cuadro
+        const a1 = rayoHastaBordePantalla(cx, cy, 1, 1);
+        const a2 = rayoHastaBordePantalla(cx, cy, -1, -1);
+        const b1 = rayoHastaBordePantalla(cx, cy, 1, -1);
+        const b2 = rayoHastaBordePantalla(cx, cy, -1, 1);
+        segmentos = [
+            [a2[0], a2[1], a1[0], a1[1]],
+            [b2[0], b2[1], b1[0], b1[1]]
+        ];
+    }
+
+    const avisos = segmentos.map(([x0, y0, x1, y1]) => crearAvisoLaserDesdeSegmento(x0, y0, x1, y1));
+    jefe.avisoLaserActivo = true;
+
+    setTimeout(() => {
+        avisos.forEach(a => { if (a.isConnected) a.remove(); });
+        if (!jefe || jefe.id !== idJefe || jefe.derrotado) {
+            if (jefe) jefe.avisoLaserActivo = false;
+            return;
+        }
+        jefe.avisoLaserActivo = false;
+        segmentos.forEach(([x0, y0, x1, y1]) => crearHazLaserDesdeSegmento(x0, y0, x1, y1));
+    }, 350);
+}
+
+function dispararLaserHexagonial() {
+    if (!jefe || jefe.tipo !== "hexagonial" || !boton || jefe.avisoLaserActivo) return;
+
+    // Fase 2 (≤50% vida): el láser se convierte en cruz.
+    if (esFaseDosHexagonial()) {
+        dispararLaserCruzHexagonial();
+        return;
+    }
+
+    const idJefe = jefe.id;
+    limpiarLaseresHexagonial();
+
+    // Fase 1: láser simple dirigido.
+    const trayectoria = obtenerTrayectoriaLaserHexagonial(
+        jefe.elemento.getBoundingClientRect(), boton.getBoundingClientRect()
+    );
+    const ang = Math.atan2(trayectoria.dy, trayectoria.dx);
+    const aviso = crearAvisoLaserDesdeSegmento(
+        trayectoria.x0,
+        trayectoria.y0,
+        trayectoria.x0 + Math.cos(ang) * trayectoria.distancia,
+        trayectoria.y0 + Math.sin(ang) * trayectoria.distancia
+    );
+    jefe.avisoLaserActivo = true;
+
+    setTimeout(() => {
+        if (aviso.isConnected) aviso.remove();
+        if (!jefe || jefe.id !== idJefe || jefe.derrotado) {
+            if (jefe) jefe.avisoLaserActivo = false;
+            return;
+        }
+        jefe.avisoLaserActivo = false;
+        crearHazLaserHexagonial(trayectoria);
+    }, 350);
 }
 
 function actualizarJefe() {
@@ -2837,26 +3129,36 @@ function actualizarJefe() {
             [izquierda, arriba + lado],
             [izquierda, h / 2]
         ];
+        // Al llegar a cada esquina: colocar, avisar y atacar. Se queda más tiempo
+        // en esa posición para completar indicador + láser de forma rápida.
+        let acabaDeLlegar = false;
         if (now >= jefe.siguientePaso) {
             jefe.pasoCamino = (jefe.pasoCamino + 1) % puntos.length;
+            // 350 ms indicador + 500 ms láser + margen breve ≈ 1 s en la esquina
             jefe.siguientePaso = now + 1000;
+            acabaDeLlegar = true;
         }
-        const [px,py] = puntos[jefe.pasoCamino];
+        const [px, py] = puntos[jefe.pasoCamino];
         jefe.elemento.style.left = `${px}px`;
         jefe.elemento.style.top = `${py}px`;
-        if (now >= jefe.siguienteInvocacion) {
-            if (enemigos.length < MAX_ENEMIGOS) crearEnemigo(true);
-            jefe.siguienteInvocacion = now + 4500;
-        }
-        if (now - jefe.ultimoDisparo >= INTERVALO_DISPARO_JEFE) {
-            jefe.ultimoDisparo = now;
+        if (acabaDeLlegar && !jefe.avisoLaserActivo) {
             dispararLaserHexagonial();
         }
-        // Hexagonial conserva su láser y añade el ataque de bordes doble cada 8s.
-        if (now - jefe.ultimoAtaqueBorde >= 8000) {
-            jefe.ultimoAtaqueBorde = now;
-            patronBorde(true, null, true);
+        // Aviso único al entrar en fase 2 (láser en cruz).
+        if (esFaseDosHexagonial() && !jefe.faseDosAnunciada) {
+            jefe.faseDosAnunciada = true;
+            mostrarAvisoRobo("¡HEXAGONIAL ENTRA EN FASE 2! LÁSER EN CRUZ");
         }
+        // Invocaciones moderadas: frecuentes, sin saturar.
+        // Fase 1: 1–2 cada ~3.2 s | Fase 2: 2 cada ~2.6 s
+        if (now >= jefe.siguienteInvocacion) {
+            const hueco = MAX_ENEMIGOS - enemigos.filter(e => !e.derrotado).length;
+            const maxPorOleada = esFaseDosHexagonial() ? 2 : (Math.random() < 0.55 ? 2 : 1);
+            const cantidad = Math.min(hueco, maxPorOleada);
+            for (let i = 0; i < cantidad; i++) crearEnemigo(true);
+            jefe.siguienteInvocacion = now + (esFaseDosHexagonial() ? 2600 : 3200);
+        }
+        // Hexagonial: láser al llegar a cada esquina (simple o cruz según fase).
         return;
     }
     jefe.angulo += 0.001;
@@ -3057,6 +3359,81 @@ function mantenerJugadorEnZona() {
     alma.style.top  = `${posicionJugador.y}px`;
 }
 
+function crearImagenResidualDash() {
+    if (!alma) return;
+    const rect = alma.getBoundingClientRect();
+    const estilo = getComputedStyle(alma);
+    let angulo = 45;
+    if (estilo.transform && estilo.transform !== "none") {
+        try {
+            const matriz = new DOMMatrixReadOnly(estilo.transform);
+            angulo = Math.atan2(matriz.b, matriz.a) * 180 / Math.PI;
+        } catch (_) { /* Mantener la orientación de diamante por defecto. */ }
+    }
+    const copia = alma.cloneNode(false);
+    copia.removeAttribute("id");
+    copia.setAttribute("aria-hidden", "true");
+    copia.classList.remove("latir");
+    copia.classList.add("dash-afterimage");
+    Object.assign(copia.style, {
+        position: "fixed",
+        left: `${rect.left + rect.width / 2}px`,
+        top: `${rect.top + rect.height / 2}px`,
+        width: "22px",
+        height: "22px",
+        margin: "0",
+        zIndex: "5",
+        pointerEvents: "none",
+        opacity: "0.58",
+        transform: `translate(-50%, -50%) rotate(${angulo}deg)`,
+        transformOrigin: "center center",
+        animation: "none"
+    });
+    document.body.appendChild(copia);
+    setTimeout(() => copia.remove(), 240);
+}
+
+function activarDash() {
+    const ahora = Date.now();
+    if (!alma || jugadorMuerto || juegoFinalizado ||
+        ahora < dashHasta) return;
+
+    const limites = obtenerLimitesCajaVerde();
+    if (!limites) return;
+    if (posicionJugador.x === null || posicionJugador.y === null) {
+        posicionJugador.x = (limites.minX + limites.maxX) / 2;
+        posicionJugador.y = (limites.minY + limites.maxY) / 2;
+    }
+
+    let dx = 0, dy = 0;
+    if (teclasPulsadas.has("ArrowLeft") || teclasPulsadas.has("a")) dx--;
+    if (teclasPulsadas.has("ArrowRight") || teclasPulsadas.has("d")) dx++;
+    if (teclasPulsadas.has("ArrowUp") || teclasPulsadas.has("w")) dy--;
+    if (teclasPulsadas.has("ArrowDown") || teclasPulsadas.has("s")) dy++;
+    if (dx === 0 && dy === 0) {
+        dx = ultimaDireccionMovimiento.x;
+        dy = ultimaDireccionMovimiento.y;
+    }
+    const modulo = Math.hypot(dx, dy) || 1;
+    dx /= modulo;
+    dy /= modulo;
+
+    dashOrigen = { x: posicionJugador.x, y: posicionJugador.y };
+    dashDestino = {
+        x: Math.max(limites.minX, Math.min(posicionJugador.x + dx * DISTANCIA_DASH, limites.maxX)),
+        y: Math.max(limites.minY, Math.min(posicionJugador.y + dy * DISTANCIA_DASH, limites.maxY))
+    };
+    if (Math.hypot(dashDestino.x - dashOrigen.x, dashDestino.y - dashOrigen.y) < 4) {
+        dashOrigen = dashDestino = null;
+        return;
+    }
+
+    dashInicio = ahora;
+    dashHasta = ahora + DURACION_DASH;
+    dashSiguienteEstela = ahora;
+    document.body.classList.add("dash-activo");
+}
+
 function moverJugador() {
     if (!alma || jugadorMuerto || juegoFinalizado) return;
 
@@ -3071,21 +3448,38 @@ function moverJugador() {
             const vidaAnterior = vidaJugador;
             vidaJugador = Math.min(
                 maxVida(),
-                vidaJugador + ticksApoyo * CURACION_ALMA_VERDE
+                vidaJugador + ticksApoyo * CURACION_ALMA_VERDE * (growUpApoyoComprado ? 2 : 1)
             );
             if (vidaJugador !== vidaAnterior) actualizarBarraVida();
         }
     }
-    if (parryHasta > 0 && ahora >= parryHasta) {
-        parryHasta = 0;
-        alma.classList.remove("parry-activo");
-        document.body.classList.remove("parry-activo");
-    }
-    // Durante el Parry el jugador queda completamente inmóvil.
-    // Las teclas también se limpian al entrar para evitar movimiento residual.
-    if (ahora < parryHasta) {
-        teclasPulsadas.clear();
+
+    if (ahora < dashHasta && dashOrigen && dashDestino) {
+        if (ahora >= dashSiguienteEstela) {
+            crearImagenResidualDash();
+            dashSiguienteEstela = ahora + INTERVALO_ESTELA_DASH;
+        }
+        const progreso = Math.min(1, (ahora - dashInicio) / DURACION_DASH);
+        const suavizado = 1 - Math.pow(1 - progreso, 2);
+        posicionJugador.x = dashOrigen.x + (dashDestino.x - dashOrigen.x) * suavizado;
+        posicionJugador.y = dashOrigen.y + (dashDestino.y - dashOrigen.y) * suavizado;
+        alma.style.left = `${posicionJugador.x}px`;
+        alma.style.top = `${posicionJugador.y}px`;
+        actualizarOrientacionAlma();
         return;
+    }
+    if (dashHasta > 0 && ahora >= dashHasta) {
+        if (dashDestino) {
+            posicionJugador.x = dashDestino.x;
+            posicionJugador.y = dashDestino.y;
+            alma.style.left = `${posicionJugador.x}px`;
+            alma.style.top = `${posicionJugador.y}px`;
+        }
+        dashHasta = 0;
+        dashInicio = 0;
+        dashOrigen = null;
+        dashDestino = null;
+        document.body.classList.remove("dash-activo");
     }
 
     const limites = obtenerLimitesCajaVerde();
@@ -3132,6 +3526,7 @@ function moverJugador() {
             dx *= Math.SQRT1_2;
             dy *= Math.SQRT1_2;
         }
+        ultimaDireccionMovimiento = { x: dx, y: dy };
 
         posicionJugador.x = Math.max(
             minX,
@@ -3226,7 +3621,7 @@ function cambiarAlma() {
 
     const mensajes = {
         roja: "ALMA ROJA: movimiento libre y ayudantes activos.",
-        dorada: "ALMA DORADA: ratón para apuntar · ESPACIO para disparar.",
+        dorada: "ALMA DORADA: ratón para apuntar · clic para disparar.",
         verde: "ALMA VERDE: te quedas inmóvil donde estabas y recuperas 5 HP por segundo."
     };
     mostrarAvisoRobo(mensajes[almaActiva]);
@@ -3280,41 +3675,7 @@ function actualizarEstela(estela, x, y, x0, y0, q) {
     estela.style.opacity = String(0.95 * (1 - q * 0.55));
 }
 
-function crearProyectilJugador(dirX, dirY) {
-    // El Parry bloquea también los disparos del Alma Dorada, sin importar
-    // si se intenta disparar con clic, desde un enemigo o desde la caja.
-    if (
-        juegoFinalizado ||
-        almaActiva !== "dorada" ||
-        !almaDoradaDesbloqueada ||
-        jugadorMuerto ||
-        Date.now() < parryHasta
-    ) {
-        return;
-    }
-
-    const origen = obtenerPosicionAlmaViewport();
-    const x0 = origen.x;
-    const y0 = origen.y;
-
-    // Dirección: argumento explícito, última posición del ratón, o arriba
-    let x1 = dirX !== undefined && dirX !== null ? dirX : posicionRaton.x;
-    let y1 = dirY !== undefined && dirY !== null ? dirY : posicionRaton.y;
-
-    if (x1 === null || y1 === null || x1 === undefined || y1 === undefined) {
-        x1 = x0;
-        y1 = y0 - 400;
-    }
-
-    const dx = x1 - x0;
-    const dy = y1 - y0;
-    const dist = Math.hypot(dx, dy) || 1;
-
-    // Extender el alcance para que el proyectil viaje lejos
-    const alcance = Math.max(400, Math.min(700, dist * 1.4));
-    x1 = x0 + (dx / dist) * alcance;
-    y1 = y0 + (dy / dist) * alcance;
-
+function crearUnaBalaJugador(x0, y0, x1, y1, golpesCompartidos = null, registrarHistorial = true) {
     const p = crearElemento("span", "proyectil-jugador proyectil-bala-deltarune");
     p.setAttribute("aria-hidden", "true");
 
@@ -3338,19 +3699,80 @@ function crearProyectilJugador(dirX, dirY) {
     document.body.appendChild(estela);
     document.body.appendChild(p);
 
+    const danioDisparo = obtenerDanioAlmaDorada();
+    if (registrarHistorial) registrarDisparoJugador(danioDisparo);
     proyectilesJugador.push({
         id: siguienteIdProyectil++,
         elemento: p,
         estela,
         inicio: Date.now(),
         duracion: 280,
+        danio: danioDisparo,
         x0,
         y0,
         x1,
         y1,
         linea: false,
-        golpes: new Set()
+        // Escopeta: mismas marcas de impacto entre las 5 balas → 1 golpe por enemigo.
+        golpes: golpesCompartidos || new Set()
     });
+}
+
+function crearProyectilJugador(dirX, dirY) {
+    if (
+        juegoFinalizado ||
+        almaActiva !== "dorada" ||
+        !almaDoradaDesbloqueada ||
+        jugadorMuerto
+    ) {
+        return;
+    }
+
+    const origen = obtenerPosicionAlmaViewport();
+    const x0 = origen.x;
+    const y0 = origen.y;
+
+    // Dirección: argumento explícito, última posición del ratón, o arriba
+    let x1 = dirX !== undefined && dirX !== null ? dirX : posicionRaton.x;
+    let y1 = dirY !== undefined && dirY !== null ? dirY : posicionRaton.y;
+
+    if (x1 === null || y1 === null || x1 === undefined || y1 === undefined) {
+        x1 = x0;
+        y1 = y0 - 400;
+    }
+
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const dist = Math.hypot(dx, dy) || 1;
+    const alcance = Math.max(400, Math.min(700, dist * 1.4));
+    const anguloBase = Math.atan2(dy, dx);
+
+    // Escopeta: un solo disparo, 5 balas en abanico desde el mismo punto.
+    // Mismo daño por bala, pero solo una bala puede impactar al mismo enemigo
+    // por disparo (así no multiplica ×5 el daño a un solo blanco).
+    if (escopetaDesbloqueada) {
+        const golpesVolley = new Set();
+        const abanico = [-0.30, -0.15, 0, 0.15, 0.30];
+        abanico.forEach((offset, i) => {
+            const a = anguloBase + offset;
+            crearUnaBalaJugador(
+                x0,
+                y0,
+                x0 + Math.cos(a) * alcance,
+                y0 + Math.sin(a) * alcance,
+                golpesVolley,
+                i === 0 // historial de daño: 1 vez por disparo, no ×5
+            );
+        });
+        return;
+    }
+
+    crearUnaBalaJugador(
+        x0,
+        y0,
+        x0 + (dx / dist) * alcance,
+        y0 + (dy / dist) * alcance
+    );
 }
 
 function proyectilTocaRect(x, y, radio, rect) {
@@ -3388,7 +3810,7 @@ function actualizarProyectilesJugador() {
 
             if (proyectilTocaRect(x, y, radioHit, r)) {
                 p.golpes.add(`e${e.id}`);
-                atacarEnemigo(e, 1);
+                atacarEnemigo(e, p.danio || obtenerDanioAlmaDorada());
             }
         }
 
@@ -3397,7 +3819,7 @@ function actualizarProyectilesJugador() {
 
             if (proyectilTocaRect(x, y, radioHit, r)) {
                 p.golpes.add(`j${jefe.id}`);
-                atacarJefe(1);
+                atacarJefe(p.danio || obtenerDanioAlmaDorada());
             }
         }
 
@@ -4047,12 +4469,12 @@ function actualizarProyectilesEnemigos() {
 }
 
 function recibirDanio(cantidad) {
-    if (jugadorMuerto || Date.now() < parryHasta) return;
+    if (jugadorMuerto || Date.now() < dashHasta) return;
 
-    const multiplicadorExtremo = modoExtremo ? 2 : 1;
+    // Suelo mínimo de 3 de daño: la defensa nunca puede bajar el impacto por debajo de eso.
     const real = Math.max(
-        1,
-        Math.ceil(cantidad * multiplicadorExtremo * (1 - obtenerDefensa()))
+        3,
+        Math.ceil(cantidad * (1 - obtenerDefensa()))
     );
 
     vidaJugador = Math.max(0, vidaJugador - real);
@@ -4070,7 +4492,7 @@ function recibirDanio(cantidad) {
     mostrarAvisoRobo(`¡IMPACTO! -${real} HP`);
 
     if (vidaJugador <= 0) {
-        if (!modoExtremo && oleadaActiva && mejorasEsencia.segunda.nivel > 0 && !segundaOportunidadUsadaOleada) {
+        if (oleadaActiva && mejorasEsencia.segunda.nivel > 0 && !segundaOportunidadUsadaOleada) {
             segundaOportunidadUsadaOleada = true;
             vidaJugador = Math.max(1, Math.ceil(maxVida() * 0.35));
             mostrarAvisoRobo(`¡SEGUNDA OPORTUNIDAD! ${vidaJugador} HP`);
@@ -4085,6 +4507,12 @@ function recibirDanio(cantidad) {
 // Muerte y reinicio de la partida
 function limpiarCombate() {
     cancelarAlertaJefe();
+    dashInicio = 0;
+    dashHasta = 0;
+    dashOrigen = null;
+    dashDestino = null;
+    document.body.classList.remove("dash-activo");
+    document.querySelectorAll(".dash-afterimage").forEach(el => el.remove());
     enemigos.forEach(e => e.elemento.remove());
     enemigos = [];
     if (ataqueBordeSanador) { ataqueBordeSanador.elementos.forEach(el => el.remove()); ataqueBordeSanador = null; }
@@ -4150,13 +4578,10 @@ function morirJugador() {
 
     vidaJugador = maxVida();
     almaActiva = "roja";
-    parryHasta = 0;
-    parryCooldownHasta = 0;
     bloqueoJefesHasta = 0;
     ultimaCuracionVerde = 0;
     ultimaCuracionApoyo = ayudanteApoyoComprado ? Date.now() : 0;
-    document.body.classList.remove("parry-activo");
-    if (alma) alma.classList.remove("parry-activo", "alma-verde", "alma-dorada");
+    if (alma) alma.classList.remove("alma-verde", "alma-dorada");
     if (boton) boton.classList.remove("modo-verde", "modo-dorado");
     bossCount = 0;
     jefesDerrotadosRun = 0;
@@ -4627,6 +5052,7 @@ function actualizarPanelProgresion() {
 
     const be = document.getElementById("comprar-especial");
     const bApoyo = document.getElementById("comprar-ayudante-apoyo");
+    const bGrowUpApoyo = document.getElementById("mejora-grow-up-apoyo");
     const bv = document.getElementById("mejora-especial-velocidad");
     const bt = document.getElementById("mejora-especial-tp");
     const btp = document.getElementById("mejora-tp-ayudantes");
@@ -4658,16 +5084,18 @@ function actualizarPanelProgresion() {
         const coste = max ? 0 : m.precios[m.nivel];
 
         actualizarIndicadorMaximo(b, max);
-        b.disabled = max || esencia < coste || (tipo === "segunda" && modoExtremo);
-        const nombres = { click: "Poder de clic", velocidad: "Velocidad normal", ayudantes: "Recompensa de ayudantes", especial: "TP de ayudantes especiales", sobrecarga: "Sobrecarga", cosecha: "Cosecha de esencias", nucleo: "Núcleo de TP", sinergia: "Sinergia", segunda: "Segunda oportunidad" };
+        b.disabled = max || esencia < coste;
+        const nombres = { click: "Poder de clic", velocidad: "Velocidad normal", ayudantes: "Recompensa de ayudantes", especial: "TP de ayudantes especiales", sobrecarga: "Sobrecarga", cosecha: "Cosecha de esencias", nucleo: "Núcleo de TP", sinergia: "Sinergia", segunda: "Segunda oportunidad", danio: "Potencia del Alma Dorada" };
         if (tipo === "sobrecarga" && m.nivel > 0) {
             b.disabled = true;
             b.textContent = `Sobrecarga · ${obtenerEstadoSobrecarga()} · ×1,5 durante 5s / recarga 10s`;
         } else if (tipo === "segunda" && m.nivel > 0) {
             b.disabled = true;
-            b.textContent = modoExtremo ? "SEGUNDA OPORTUNIDAD · INHABILITADA EN MODO EXTREMO" : `SEGUNDA OPORTUNIDAD · ${segundaOportunidadUsadaOleada ? "USADA ESTA OLEADA" : "DISPONIBLE EN OLEADAS"}`;
+            b.textContent = `SEGUNDA OPORTUNIDAD · ${segundaOportunidadUsadaOleada ? "USADA ESTA OLEADA" : "DISPONIBLE EN OLEADAS"}`;
         } else {
-            b.textContent = `${nombres[tipo] || tipo} · Nivel ${m.nivel} · ${coste} Esencias`;
+            b.textContent = tipo === "danio"
+                ? `${nombres[tipo]} · Daño ${obtenerDanioAlmaDorada()} → ${obtenerDanioAlmaDorada() + 1} · ${coste} Esencias`
+                : `${nombres[tipo] || tipo} · Nivel ${m.nivel} · ${coste} Esencias`;
         }
     });
 
@@ -4675,6 +5103,15 @@ function actualizarPanelProgresion() {
         bApoyo.disabled = ayudanteApoyoComprado || tpTotal < COSTE_AYUDANTE_APOYO;
         bApoyo.textContent = `Ayudante de apoyo · ${formatear(COSTE_AYUDANTE_APOYO)} TP`;
         actualizarIndicadorComprado(bApoyo, ayudanteApoyoComprado);
+    }
+    if (bGrowUpApoyo) {
+        bGrowUpApoyo.disabled = !ayudanteApoyoComprado || growUpApoyoComprado || tpTotal < COSTE_GROW_UP_APOYO;
+        bGrowUpApoyo.textContent = growUpApoyoComprado
+            ? "GROW UP · AYUDANTE CURATIVO MEJORADO (4 HP/s)"
+            : !ayudanteApoyoComprado
+                ? "GROW UP · REQUIERE AYUDANTE DE APOYO"
+                : `GROW UP · ${formatear(COSTE_GROW_UP_APOYO)} TP · 4 HP/s Y TAMAÑO NORMAL`;
+        actualizarIndicadorComprado(bGrowUpApoyo, growUpApoyoComprado);
     }
 
     if (be) {
@@ -4738,6 +5175,20 @@ function actualizarPanelProgresion() {
         actualizarIndicadorComprado(bd, almaDoradaDesbloqueada);
     }
 
+    const bEscopeta = document.getElementById("comprar-escopeta");
+    if (bEscopeta) {
+        bEscopeta.disabled =
+            escopetaDesbloqueada ||
+            !almaDoradaDesbloqueada ||
+            tpTotal < COSTE_ESCOPETA;
+        bEscopeta.textContent = escopetaDesbloqueada
+            ? "DISPARO DE ESCOPETA · DESBLOQUEADO (5 BALAS)"
+            : !almaDoradaDesbloqueada
+                ? `Disparo de escopeta · Requiere Alma Dorada · ${formatear(COSTE_ESCOPETA)} TP`
+                : `Disparo de escopeta (5 balas) · ${formatear(COSTE_ESCOPETA)} TP`;
+        actualizarIndicadorComprado(bEscopeta, escopetaDesbloqueada);
+    }
+
     const bvj = document.getElementById("mejora-vida");
 
     if (bvj) {
@@ -4745,11 +5196,9 @@ function actualizarPanelProgresion() {
         const c = max ? 0 : COSTES_VIDA[nivelVida];
 
         actualizarIndicadorMaximo(bvj, max);
-        bvj.disabled = modoExtremo || max || esencia < c;
+        bvj.disabled = max || esencia < c;
 
-        bvj.textContent = modoExtremo
-            ? `VIDA · TEMPORALMENTE INACTIVA (Nivel ${nivelVida})`
-            : `Vida +${VIDA_POR_MEJORA} · Nivel ${nivelVida} · ${c} Esencias`;
+        bvj.textContent = `Vida +${VIDA_POR_MEJORA} · Nivel ${nivelVida} · ${c} Esencias`;
     }
 
     const bdef = document.getElementById("mejora-defensa");
@@ -4759,11 +5208,9 @@ function actualizarPanelProgresion() {
         const c = max ? 0 : COSTES_DEFENSA[nivelDefensa];
 
         actualizarIndicadorMaximo(bdef, max);
-        bdef.disabled = modoExtremo || max || esencia < c;
+        bdef.disabled = max || esencia < c;
 
-        bdef.textContent = modoExtremo
-            ? `DEFENSA · TEMPORALMENTE INACTIVA (Nivel ${nivelDefensa})`
-            : `Defensa ${Math.round(obtenerDefensa() * 100)}% → ${Math.round((nivelDefensa + 1) * 10)}% · ${c} Esencias`;
+        bdef.textContent = `Defensa ${Math.round(obtenerDefensa() * 100)}% → ${Math.round(Math.min(62.5, (nivelDefensa + 1) * 6.25))}% · ${c} Esencias`;
     }
 
     const bTamanoCaja = document.getElementById("mejora-tamano-caja");
@@ -4777,14 +5224,6 @@ function actualizarPanelProgresion() {
         bTamanoCaja.textContent = `AMPLIAR CUADRO · ${tamanoActual}→${siguienteTamano}px · Nivel ${nivelTamanoCaja + 1}/${COSTES_TAMANO_CAJA.length} · ${formatear(coste)} Esencias`;
     }
 
-    const bParry = document.getElementById("comprar-parry");
-    if (bParry) {
-        bParry.disabled = parryDesbloqueado || esencia < COSTE_PARRY;
-        bParry.textContent = parryDesbloqueado
-            ? "PARRY · DESBLOQUEADO (ESPACIO)"
-            : `Desbloquear Parry · ${formatear(COSTE_PARRY)} Esencias`;
-        actualizarIndicadorComprado(bParry, parryDesbloqueado);
-    }
 
     const bMorado = document.getElementById("mejora-cuadro-morado");
     if (bMorado) {
@@ -4834,8 +5273,6 @@ function actualizarInterfaz() {
     actualizarBotonesCompra();
     actualizarAyudantes();
     actualizarPanelProgresion();
-    const botonExtremo = document.getElementById("boton-modo-extremo");
-    if (botonExtremo) botonExtremo.textContent = modoExtremo ? "DESACTIVAR MODO EXTREMO (x2)" : "ACTIVAR MODO EXTREMO";
 }
 
 // Eventos
@@ -5058,27 +5495,6 @@ window.addEventListener("keydown", event => {
         return;
     }
 
-    // Espacio: siempre prevenir scroll; en modo dorado dispara
-    if (k === " " || event.code === "Space") {
-        event.preventDefault();
-
-        if (!event.repeat && !jugadorMuerto && !juegoFinalizado) {
-            if (parryDesbloqueado) {
-                activarParry();
-            } else if (almaActiva === "dorada" && almaDoradaDesbloqueada) {
-                crearProyectilJugador();
-            }
-        }
-        return;
-    }
-
-    // Mientras el Parry está activo no se puede mover, apuntar por teclado,
-    // cambiar de alma ni activar ninguna otra acción.
-    if (Date.now() < parryHasta) {
-        event.preventDefault();
-        return;
-    }
-
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(k)) {
         event.preventDefault();
     }
@@ -5137,6 +5553,25 @@ window.addEventListener("keydown", event => {
     }
 }, true); // capture: funciona aunque un botón tenga el foco
 
+// Clic derecho: activar el dash y evitar que aparezca el menú contextual.
+window.addEventListener("mousedown", event => {
+    if (event.button !== 2) return;
+
+    const objetivo = event.target;
+    const escribiendoTexto = objetivo instanceof HTMLElement && (
+        objetivo.isContentEditable ||
+        objetivo.matches("input, textarea, select")
+    );
+    if (escribiendoTexto) return;
+
+    event.preventDefault();
+    activarDash();
+}, true);
+
+window.addEventListener("contextmenu", event => {
+    event.preventDefault();
+}, true);
+
 window.addEventListener("keyup", event => {
     const k = event.key.length === 1
         ? event.key.toLowerCase()
@@ -5150,8 +5585,6 @@ window.addEventListener("blur", () => {
 });
 
 window.addEventListener("mousemove", event => {
-    // No permitir apuntar ni cambiar la orientación durante el Parry.
-    if (Date.now() < parryHasta) return;
     posicionRaton.x = event.clientX;
     posicionRaton.y = event.clientY;
     actualizarOrientacionAlma();
@@ -5174,6 +5607,9 @@ configurarMenu(
 );
 
 cargarProgreso();
+// Asegura que partidas antiguas no dejen el modo extremo activo ni su botón residual.
+modoExtremo = false;
+document.getElementById("boton-modo-extremo")?.remove();
 
 for (const id of Object.keys(ayudantes).map(Number)) {
     const a = ayudantes[id];
@@ -5222,6 +5658,8 @@ if (combateJefeGuardado && !juegoFinalizado && !jugadorMuerto) {
     if (jefe) {
         jefe.vidaMaxima = Math.max(1, numeroSeguro(guardado.vidaMaxima, jefe.vidaMaxima));
         jefe.vidaActual = Math.max(1, Math.min(jefe.vidaMaxima, numeroSeguro(guardado.vidaActual, jefe.vidaMaxima)));
+        // Recalcula sin el ×2 del antiguo modo extremo (mantiene proporción de vida).
+        actualizarDificultadEnemigosExistentes();
         actualizarVidaJefe();
         mostrarAvisoRobo(`COMBATE RESTAURADO · ${jefe.vidaActual}/${jefe.vidaMaxima} HP`);
     }
@@ -5230,32 +5668,6 @@ if (combateJefeGuardado && !juegoFinalizado && !jugadorMuerto) {
 }
 if (juegoFinalizado) mostrarFinalElDestello(false);
 
-function actualizarTemporizadorParry() {
-    if (!temporizadorParry) return;
-    const ahora = Date.now();
-
-    // No mostrar estados bloqueado/listo ni la duración del Parry activo.
-    // Solo mostrar el tiempo restante de recarga después de usarlo.
-    if (!parryDesbloqueado || ahora >= parryCooldownHasta || parryCooldownHasta <= 0) {
-        temporizadorParry.hidden = true;
-        temporizadorParry.textContent = "";
-        temporizadorParry.classList.remove("parry-recarga", "parry-en-uso", "parry-listo");
-        return;
-    }
-
-    temporizadorParry.hidden = false;
-    temporizadorParry.textContent = `${Math.max(0, (parryCooldownHasta - ahora) / 1000).toFixed(1)} s`;
-    temporizadorParry.classList.add("parry-recarga");
-    temporizadorParry.classList.remove("parry-en-uso", "parry-listo");
-
-    // Mantener el pequeño texto centrado justo debajo del alma mientras se mueve.
-    if (alma) {
-        temporizadorParry.style.left = `${alma.offsetLeft + alma.offsetWidth / 2}px`;
-        temporizadorParry.style.top = `${alma.offsetTop + alma.offsetHeight + 8}px`;
-    }
-}
-
-setInterval(actualizarTemporizadorParry, 50);
 setInterval(moverJugador, 16);
 setInterval(actualizarCicloAyudantes, 50);
 
@@ -5279,8 +5691,9 @@ setInterval(() => {
     if (!emisores.length) return;
 
     ultimoDisparoEnemigo = Date.now();
-    // Los invocados por Hexagonial atacan como cualquier enemigo normal.
-    // Su diferencia queda limitada a su vida extra y su recorrido lento.
+    // Todos los enemigos (incluidos los hexágonos invocados por Hexagonial)
+    // usan el set completo de patrones. El láser de Hexagonial sigue siendo
+    // exclusivo del jefe y no se elige aquí.
     dispararContraJugador(false, emisores);
 }, 100);
 
@@ -5289,7 +5702,7 @@ setInterval(() => {
     const b = document.getElementById("mejora-esencia-sobrecarga");
     if (b && mejorasEsencia.sobrecarga.nivel > 0) b.textContent = `Sobrecarga · ${obtenerEstadoSobrecarga()} · ×1,5 durante 5s / recarga 10s`;
     const segunda = document.getElementById("mejora-esencia-segunda");
-    if (segunda && mejorasEsencia.segunda.nivel > 0) segunda.textContent = modoExtremo ? "SEGUNDA OPORTUNIDAD · INHABILITADA EN MODO EXTREMO" : `SEGUNDA OPORTUNIDAD · ${segundaOportunidadUsadaOleada ? "USADA ESTA OLEADA" : "DISPONIBLE EN OLEADAS"}`;
+    if (segunda && mejorasEsencia.segunda.nivel > 0) segunda.textContent = `SEGUNDA OPORTUNIDAD · ${segundaOportunidadUsadaOleada ? "USADA ESTA OLEADA" : "DISPONIBLE EN OLEADAS"}`;
 }, 250);
 
 window.addEventListener("resize", () => {
